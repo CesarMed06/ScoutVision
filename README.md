@@ -14,18 +14,18 @@
 
 # ScoutVision AI ⚽🧠
 
-**AI-powered football scouting engine** — ingests real match data from StatsBomb Open Data, computes advanced performance metrics, generates tactical visualizations, and produces AI-driven scouting reports using Llama 3 via Groq API.
+**AI-powered football scouting engine** that ingests real match data from StatsBomb Open Data, computes advanced performance metrics, generates tactical visualizations, and produces AI-driven scouting reports using Llama 3 via Groq API.
 
 Inspired by the data-driven approach that clubs like Schalke 04, Brighton, and Brentford use to find hidden talent.
 
 ## ✨ Features
 
-- **Data Pipeline** — Automatically ingests and parses StatsBomb Open Data (matches, events, lineups)
-- **Metrics Engine** — Calculates xG, xA, progressive passes, pressures, duel success rate, and more
-- **Tactical Visualizations** — Heatmaps, pitch plots, and passing networks rendered with mplsoccer
-- **AI Scouting Reports** — Narrative reports in English or Spanish powered by Llama 3.3 70B
-- **Interactive Dashboard** — Search players, compare stats, view visualizations, and read AI analysis
-- **100% Free** — No paid APIs, all open-source, deployable on free tiers
+- **Data Pipeline:** automatically ingests and parses StatsBomb Open Data (matches, events, lineups)
+- **Metrics Engine:** calculates xG, xA, progressive passes, pressures, duel success rate and more
+- **Tactical Visualizations:** heatmaps, pitch plots and passing networks rendered with mplsoccer
+- **AI Scouting Reports:** narrative reports in English or Spanish powered by Llama 3.3 70B
+- **Interactive Dashboard:** search players, compare stats, view visualizations and read AI analysis
+- **100% Free:** no paid APIs, all open-source, deployable on free tiers
 
 ## 🏗️ Architecture
 
@@ -84,13 +84,13 @@ Open http://localhost:5173 and start exploring.
 
 ## 🗺️ Roadmap
 
-- [x] Project setup & architecture
+- [x] Project setup and architecture
 - [ ] Data ingestion pipeline (StatsBomb)
-- [ ] Player metrics engine & API
+- [ ] Player metrics engine and API
 - [ ] Tactical visualizations
-- [ ] AI scouting reports (Groq + Llama 3)
+- [ ] AI scouting reports (Groq and Llama 3)
 - [ ] Interactive dashboard
-- [ ] Deployment & polish
+- [ ] Deployment and polish
 
 ## 🛠️ Tech Stack
 
@@ -110,5 +110,5 @@ MIT
 ---
 
 <p align="center">
-  Built with ❤️ for football and data science
+  Built with care for football and data science
 </p>
