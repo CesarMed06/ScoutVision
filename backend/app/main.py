@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.api.v1.statsbomb import router as statsbomb_router
+from app.api.v1.metrics import router as metrics_router
 
 app = FastAPI(
     title="ScoutVision AI",
@@ -19,6 +20,7 @@ app.add_middleware(
 )
 
 app.include_router(statsbomb_router, prefix="/api/v1")
+app.include_router(metrics_router, prefix="/api/v1/metrics")
 
 
 @app.get("/health")
