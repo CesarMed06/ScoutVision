@@ -90,43 +90,75 @@ def get_match_lineups(match_id: int) -> list:
     return result
 
 
+TARGET_LEAGUES = [
+    (9, 27),    # Bundesliga 2015/2016
+    (9, 281),   # Bundesliga 2023/2024
+    (2, 27),    # Premier League 2015/2016
+    (11, 27),   # La Liga 2015/2016
+    (16, 4),    # Champions League 2018/2019
+]
+
+# Specific match IDs with top teams not in head(50) of their leagues
+EXTRA_MATCHES = [
+    # Barcelona matches (La Liga 15/16 starts at index 173+)
+    3825660,  # Barcelona vs Villarreal
+    3825637,  # Barcelona vs Eibar
+    3825645,  # Getafe vs Barcelona
+    3825627,  # Barcelona vs Rayo Vallecano
+    3825617,  # Sevilla vs Barcelona
+    267533,   # Barcelona vs Real Madrid
+    267576,   # Barcelona vs Atletico Madrid
+    266424,   # Real Madrid vs Barcelona
+    # More Bayern/BVB matches
+    3890508,  # Bayern vs Dortmund
+    3890519,  # Bayern vs Wolfsburg
+    3890526,  # Bayern vs Mainz
+    3890547,  # Dortmund vs Bayern
+]
+
+
+
+def _build_player_index():
+    comps = sb.competitions()
+    all_players = []
+    for cid, sid in TARGET_LEAGUES:
+        comp_row = comps[
+            (comps["competition_id"] == cid) & (comps["season_id"] == sid)
+        ]
+        if len(comp_row) == 0:
+            continue
+        comp = comp_row.iloc[0]
+        matches = sb.matches(competition_id=cid, season_id=sid).head(50)
+        mids = list(matches["match_id"].values)
+        for mid in EXTRA_MATCHES:
+            if mid not in mids:
+                mids.append(mid)
+        for mid in mids:
+            raw = sb.lineups(match_id=mid)
+            for team_name, lineup_df in raw.items():
+                for _, p in lineup_df.iterrows():
+                    all_players.append(
+                        {
+                            "player_id": p["player_id"],
+                            "player_name": p["player_name"],
+                            "team": team_name,
+                            "match_id": mid,
+                            "competition": comp["competition_name"],
+                            "season": comp["season_name"],
+                        }
+                    )
+    df = pd.DataFrame(all_players)
+    _save_cache("players_index", json.loads(df.to_json(orient="records")))
+    return df
+
+
 def search_players(query: str = "", limit: int = 100) -> pd.DataFrame:
-    cache_name = "players_index"
-    cached = _load_cached(cache_name)
+    cached = _load_cached("players_index")
     if cached is not None:
         df = pd.DataFrame(cached)
     else:
-        comps = sb.competitions().head(5)
-        all_players = []
-        count = 0
-        for _, comp in comps.iterrows():
-            if count >= 1000:
-                break
-            matches = sb.matches(
-                competition_id=comp["competition_id"],
-                season_id=comp["season_id"],
-            ).head(10)
-            for _, match in matches.iterrows():
-                if count >= 1000:
-                    break
-                raw = sb.lineups(match_id=match["match_id"])
-                for team_name, lineup_df in raw.items():
-                    for _, p in lineup_df.iterrows():
-                        all_players.append(
-                            {
-                                "player_id": p["player_id"],
-                                "player_name": p["player_name"],
-                                "team": team_name,
-                                "match_id": match["match_id"],
-                                "competition": comp["competition_name"],
-                                "season": comp["season_name"],
-                            }
-                        )
-                        count += 1
-                        if count >= 1000:
-                            break
-        df = pd.DataFrame(all_players)
-        _save_cache(cache_name, json.loads(df.to_json(orient="records")))
+        df = _build_player_index()
     if query:
-        df = df[df["player_name"].str.contains(query, case=False, na=False)]
+        q = query.replace("ue", "ü").replace("oe", "ö").replace("ae", "ä")
+        df = df[df["player_name"].str.contains(q, case=False, na=False)]
     return df.head(limit)
