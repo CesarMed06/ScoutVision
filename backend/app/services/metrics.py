@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 import pandas as pd
 
 from app.services.statsbomb import get_match_events
@@ -7,28 +9,31 @@ MIN_PROGRESSIVE_DIST = 10
 
 
 def _infer_minutes(events: pd.DataFrame, player: str) -> float:
-    if player not in events["player"].values:
-        return 0
-    halves = events[(events["type"] == "Half End") | (events["type"] == "Half Start")]
-    has_halves = len(halves) > 0
+    subs = events[events["type"] == "Substitution"]
+    subbed_on = subs[subs["substitution_replacement"] == player]
+    subbed_off = subs[subs["player"] == player]
     player_events = events[events["player"] == player]
     if len(player_events) == 0:
         return 0
-    max_min = player_events["minute"].max()
-    min_min = player_events["minute"].min()
-    if has_halves:
-        second_half = events[
-            (events["type"].isin(["Half End", "Half Start"]))
-            & (events["minute"] >= 40)
-        ]
-        if len(second_half) > 0:
-            halftime_min = second_half.iloc[0]["minute"]
-            if max_min >= halftime_min:
-                if min_min < halftime_min:
-                    return 90
-                return 90 - min_min
-            return min(halftime_min, 45)
-    return min(90, max_min - min_min + 1)
+    first_half_end = events[(events["type"] == "Half End") & (events["period"] == 1)]
+    full_time = 90
+    if len(first_half_end) > 0:
+        full_time = int(first_half_end.iloc[0]["minute"]) * 2
+    else:
+        full_time = int(player_events["minute"].max()) + 5
+    full_time = max(full_time, 90)
+    has_starting_xi = len(player_events[player_events["minute"] <= 1]) > 0
+    if len(subbed_on) > 0:
+        start_min = int(subbed_on.iloc[0]["minute"])
+    elif has_starting_xi:
+        start_min = 0
+    else:
+        start_min = int(player_events["minute"].min())
+    if len(subbed_off) > 0:
+        end_min = int(subbed_off.iloc[0]["minute"])
+    else:
+        end_min = full_time
+    return max(0, end_min - start_min)
 
 
 def _col(df, name):
@@ -220,6 +225,7 @@ def get_match_metrics(match_id: int) -> list[dict]:
     return results
 
 
+@lru_cache(maxsize=64)
 def get_player_metrics_across_matches(player_id: int) -> list[dict]:
     from app.services.statsbomb import search_players
 
@@ -231,7 +237,6 @@ def get_player_metrics_across_matches(player_id: int) -> list[dict]:
     player_name = player_rows.iloc[0]["player_name"]
     match_ids = player_rows["match_id"].unique()
 
-    # Match by substring since lineup names may differ from event names
     def find_player_in_events(events_df, name):
         if name in events_df["player"].values:
             return name
