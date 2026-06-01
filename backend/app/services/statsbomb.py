@@ -1,4 +1,5 @@
 import json
+from functools import lru_cache
 from pathlib import Path
 
 import pandas as pd
@@ -66,6 +67,7 @@ def get_matches(competition_id: int, season_id: int) -> pd.DataFrame:
     return result
 
 
+@lru_cache(maxsize=128)
 def get_match_events(match_id: int) -> pd.DataFrame:
     cache_name = f"events_{match_id}"
     cached = _load_cached(cache_name)
@@ -91,29 +93,26 @@ def get_match_lineups(match_id: int) -> list:
 
 
 TARGET_LEAGUES = [
-    (9, 27),    # Bundesliga 2015/2016
-    (9, 281),   # Bundesliga 2023/2024
-    (2, 27),    # Premier League 2015/2016
-    (11, 27),   # La Liga 2015/2016
-    (16, 4),    # Champions League 2018/2019
+    (9, 27),
+    (9, 281),
+    (2, 27),
+    (11, 27),
+    (16, 4),
 ]
 
-# Specific match IDs with top teams not in head(50) of their leagues
 EXTRA_MATCHES = [
-    # Barcelona matches (La Liga 15/16 starts at index 173+)
-    3825660,  # Barcelona vs Villarreal
-    3825637,  # Barcelona vs Eibar
-    3825645,  # Getafe vs Barcelona
-    3825627,  # Barcelona vs Rayo Vallecano
-    3825617,  # Sevilla vs Barcelona
-    267533,   # Barcelona vs Real Madrid
-    267576,   # Barcelona vs Atletico Madrid
-    266424,   # Real Madrid vs Barcelona
-    # More Bayern/BVB matches
-    3890508,  # Bayern vs Dortmund
-    3890519,  # Bayern vs Wolfsburg
-    3890526,  # Bayern vs Mainz
-    3890547,  # Dortmund vs Bayern
+    3825660,
+    3825637,
+    3825645,
+    3825627,
+    3825617,
+    267533,
+    267576,
+    266424,
+    3890508,
+    3890519,
+    3890526,
+    3890547,
 ]
 
 
