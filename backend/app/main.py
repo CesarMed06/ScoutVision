@@ -5,6 +5,7 @@ from app.core.config import settings
 from app.api.v1.statsbomb import router as statsbomb_router
 from app.api.v1.metrics import router as metrics_router
 from app.api.v1.visualizations import router as viz_router
+from app.api.v1.ai import router as ai_router
 
 app = FastAPI(
     title="ScoutVision AI",
@@ -23,6 +24,7 @@ app.add_middleware(
 app.include_router(statsbomb_router, prefix="/api/v1")
 app.include_router(metrics_router, prefix="/api/v1/metrics")
 app.include_router(viz_router, prefix="/api/v1")
+app.include_router(ai_router, prefix="/api/v1")
 
 
 @app.get("/health")
