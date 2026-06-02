@@ -9,7 +9,7 @@
 <br />
 
 <p align="center">
-  <img src="https://via.placeholder.com/1200x400/1a1a2e/00ff88?text=ScoutVision+AI" alt="ScoutVision AI Banner" />
+  <img src="docs/banner.jpeg" alt="ScoutVision AI Banner" width="1200" />
 </p>
 
 # ScoutVision AI ⚽🧠
@@ -81,16 +81,6 @@ Open http://localhost:5173 and start exploring.
 | Defending | Pressures, tackles, interceptions, clearances, duel win rate |
 | Physical | Distance covered, sprints, aerial duels |
 | Tactical | Pass network centrality, heatmap density, formation fit |
-
-## 🗺️ Roadmap
-
-- [x] Project setup and architecture
-- [ ] Data ingestion pipeline (StatsBomb)
-- [ ] Player metrics engine and API
-- [ ] Tactical visualizations
-- [ ] AI scouting reports (Groq and Llama 3)
-- [ ] Interactive dashboard
-- [ ] Deployment and polish
 
 ## 🛠️ Tech Stack
 
