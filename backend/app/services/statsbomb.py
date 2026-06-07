@@ -115,11 +115,18 @@ EXTRA_MATCHES = [
     3890547,
 ]
 
+import re
+
+
+def _clean_competition_name(name: str) -> str:
+    """Strip leading numbering like '1. Bundesliga' -> 'Bundesliga'."""
+    return re.sub(r"^\d+\.\s*", "", name).strip()
 
 
 def _build_player_index():
-    comps = sb.competitions()
-    all_players = []
+    comps = get_competitions()
+
+    match_league = {}
     for cid, sid in TARGET_LEAGUES:
         comp_row = comps[
             (comps["competition_id"] == cid) & (comps["season_id"] == sid)
@@ -127,25 +134,62 @@ def _build_player_index():
         if len(comp_row) == 0:
             continue
         comp = comp_row.iloc[0]
-        matches = sb.matches(competition_id=cid, season_id=sid).head(50)
+        matches = get_matches(cid, sid).head(50)
+        for mid in matches["match_id"].values:
+            match_league[int(mid)] = (comp["competition_name"], comp["season_name"])
+
+    all_players = []
+    processed = set()
+
+    for cid, sid in TARGET_LEAGUES:
+        comp_row = comps[
+            (comps["competition_id"] == cid) & (comps["season_id"] == sid)
+        ]
+        if len(comp_row) == 0:
+            continue
+        matches = get_matches(cid, sid).head(50)
         mids = list(matches["match_id"].values)
-        for mid in EXTRA_MATCHES:
-            if mid not in mids:
-                mids.append(mid)
         for mid in mids:
-            raw = sb.lineups(match_id=mid)
-            for team_name, lineup_df in raw.items():
-                for _, p in lineup_df.iterrows():
+            if int(mid) in processed:
+                continue
+            processed.add(int(mid))
+            comp_name, season_name = match_league.get(int(mid), (comp["competition_name"], comp["season_name"]))
+            lineups = get_match_lineups(mid)
+            for entry in lineups:
+                team_name = entry["team"]
+                for p in entry["players"]:
                     all_players.append(
                         {
                             "player_id": p["player_id"],
                             "player_name": p["player_name"],
                             "team": team_name,
-                            "match_id": mid,
-                            "competition": comp["competition_name"],
-                            "season": comp["season_name"],
+                            "match_id": int(mid),
+                            "competition": _clean_competition_name(comp_name),
+                            "season": season_name,
                         }
                     )
+
+    for mid in EXTRA_MATCHES:
+        if int(mid) in processed:
+            continue
+        processed.add(int(mid))
+        if int(mid) not in match_league:
+            continue
+        comp_name, season_name = match_league[int(mid)]
+        lineups = get_match_lineups(mid)
+        for entry in lineups:
+            team_name = entry["team"]
+            for p in entry["players"]:                    all_players.append(
+                        {
+                            "player_id": p["player_id"],
+                            "player_name": p["player_name"],
+                            "team": team_name,
+                            "match_id": int(mid),
+                            "competition": _clean_competition_name(comp_name),
+                            "season": season_name,
+                        }
+                    )
+
     df = pd.DataFrame(all_players)
     _save_cache("players_index", json.loads(df.to_json(orient="records")))
     return df

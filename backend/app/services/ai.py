@@ -1,5 +1,5 @@
-from functools import lru_cache
 import logging
+import time
 
 from groq import Groq
 
@@ -7,6 +7,9 @@ from app.core.config import settings
 from app.services.metrics import get_player_metrics_across_matches
 
 logger = logging.getLogger(__name__)
+
+_report_cache: dict[tuple, tuple[str, float]] = {}
+REPORT_CACHE_TTL = 3600
 
 
 def _build_report_prompt(player_info: dict, totals: dict, match_details: list[dict], lang: str) -> str:
@@ -125,8 +128,12 @@ DATA ANALYZED:
 IMPORTANT: Be direct, no empty praise. If the numbers are bad, say it. If they're good, acknowledge it. Use a professional but natural tone, like a scout talking to a sporting director. Do NOT use generic ChatGPT phrases. Every sentence must be backed by a specific data point from the metrics."""
 
 
-@lru_cache(maxsize=32)
 def generate_scouting_report(player_id: int, lang: str = "en") -> str:
+    key = (player_id, lang)
+    now = time.time()
+    cached = _report_cache.get(key)
+    if cached and now - cached[1] < REPORT_CACHE_TTL:
+        return cached[0]
     if not settings.groq_api_key:
         return "GROQ_API_KEY not configured. Add it to your .env file."
 
@@ -197,7 +204,9 @@ def generate_scouting_report(player_id: int, lang: str = "en") -> str:
             temperature=0.7,
             max_tokens=2000,
         )
-        return response.choices[0].message.content
+        report = response.choices[0].message.content
+        _report_cache[key] = (report, now)
+        return report
     except Exception as e:
         logger.error(f"Groq API error for player {player_id}: {e}")
         return f"GROQ_API_ERROR: {str(e)}"

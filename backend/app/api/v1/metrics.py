@@ -29,6 +29,12 @@ def get_player_metrics(player_id: int):
     }
 
 
+@router.get("/averages/{player_name}")
+def get_position_averages(player_name: str):
+    averages = metrics_service.compute_position_averages(player_name)
+    return averages
+
+
 def _aggregate_totals(match_list: list[dict]) -> dict:
     if not match_list:
         return {}

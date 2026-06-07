@@ -2,7 +2,7 @@ from functools import lru_cache
 
 import pandas as pd
 
-from app.services.statsbomb import get_match_events
+from app.services.statsbomb import get_match_events, search_players
 
 FINAL_THIRD_X = 80
 MIN_PROGRESSIVE_DIST = 10
@@ -260,3 +260,69 @@ def get_player_metrics_across_matches(player_id: int) -> list[dict]:
             metrics["season"] = match_info.get("season", "")
             all_metrics.append(metrics)
     return all_metrics
+
+
+@lru_cache(maxsize=16)
+def compute_position_averages(player_name: str) -> dict:
+    df = search_players(limit=10000)
+    seen = set()
+    names = []
+    for _, row in df.iterrows():
+        pid = row["player_id"]
+        if pid not in seen:
+            seen.add(pid)
+            names.append(row["player_name"])
+
+    totals = {}
+    count = 0
+    radar_keys = [
+        "goals_per_90", "xg_per_90", "xa_per_90",
+        "key_passes_per_90", "dribbles_per_90",
+        "pass_completion_pct", "tackles_per_90", "aerial_success_pct",
+    ]
+
+    for k in radar_keys:
+        totals[k] = 0
+
+    for name in names[:50]:
+        if name == player_name:
+            continue
+        try:
+            metrics_list = get_player_metrics_across_matches(
+                int(df[df["player_name"] == name].iloc[0]["player_id"])
+            )
+        except (IndexError, ValueError, TypeError):
+            continue
+        if not metrics_list:
+            continue
+        t = {}
+        skip = {"player", "match_id", "team", "competition", "season"}
+        for key in metrics_list[0]:
+            if key in skip:
+                continue
+            if key.endswith("_pct") or key.endswith("_per_90"):
+                continue
+            t[key] = sum(m.get(key, 0) or 0 for m in metrics_list)
+        min_t = t.get("minutes", 0) or 1
+        p90 = lambda v: round(v / min_t * 90, 2)
+        t["goals_per_90"] = p90(t.get("goals", 0))
+        t["xg_per_90"] = p90(t.get("xg", 0))
+        t["xa_per_90"] = p90(t.get("xa", 0))
+        t["key_passes_per_90"] = p90(t.get("key_passes", 0))
+        t["dribbles_per_90"] = p90(t.get("dribbles", 0))
+        t["tackles_per_90"] = p90(t.get("tackles", 0))
+        shots = t.get("shots", 0) or 1
+        t["pass_completion_pct"] = round(t.get("passes_completed", 0) / (t.get("passes", 0) or 1) * 100, 1)
+        aerials = t.get("aerial_duels", 0) or 1
+        t["aerial_success_pct"] = round(t.get("aerial_duels_won", 0) / aerials * 100, 1)
+
+        for k in radar_keys:
+            totals[k] += t.get(k, 0)
+        count += 1
+
+    if count == 0:
+        return {k: 50 for k in radar_keys}
+
+    avgs = {k: round(totals[k] / count, 2) for k in radar_keys}
+    avgs["players_sampled"] = count
+    return avgs

@@ -5,6 +5,7 @@ import {
   PolarRadiusAxis,
   Radar,
   ResponsiveContainer,
+  Legend,
 } from 'recharts'
 
 interface MetricRadarProps {
@@ -40,7 +41,7 @@ export default function MetricRadar({ data }: MetricRadarProps) {
         />
         {data[0]?.avg !== undefined && (
           <Radar
-            name="Position Avg"
+            name="Avg"
             dataKey="avg"
             stroke="#60A5FA"
             fill="#60A5FA"
@@ -49,6 +50,10 @@ export default function MetricRadar({ data }: MetricRadarProps) {
             strokeDasharray="4 4"
           />
         )}
+        <Legend
+          wrapperStyle={{ fontSize: 12, color: '#9CA3AF' }}
+          iconType="circle"
+        />
       </RadarChart>
     </ResponsiveContainer>
   )
