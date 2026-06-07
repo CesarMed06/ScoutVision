@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
-import { Loader2, Shield, Target, Zap, Footprints, Swords, FileText, ChevronDown, ChevronUp } from 'lucide-react'
-import { getPlayerMetrics, getAiReport } from '../api'
-import type { PlayerMetricsResponse, PlayerMetricsTotals } from '../api'
+import { useParams, Link } from 'react-router-dom'
+import { Loader2, Target, Zap, Footprints, Swords, FileText, ChevronDown, ChevronUp, ImageIcon, Users } from 'lucide-react'
+import { getPlayerMetrics, getAiReport, getPlayerPhoto, getSimilarPlayers, getPlayerAverages } from '../api'
+import type { PlayerMetricsResponse, PlayerMetricsTotals, SimilarPlayer, AveragesResponse } from '../api'
 import MetricRadar from '../components/MetricRadar'
 
 const METRIC_LABELS: Record<string, string> = {
@@ -15,12 +15,6 @@ const METRIC_LABELS: Record<string, string> = {
   pass_completion_pct: 'Pass %', shot_accuracy: 'Shot Acc.',
   dribble_success_pct: 'Dribble %', duel_success_pct: 'Duels Won %', tackle_success_pct: 'Tackle %',
   aerial_success_pct: 'Aerial %',
-}
-
-const CAPS: Record<string, number> = {
-  goals_per_90: 2, xg_per_90: 1.5, xa_per_90: 1, key_passes_per_90: 3,
-  dribbles_per_90: 6, tackles_per_90: 5,
-  pass_completion_pct: 100, aerial_success_pct: 100,
 }
 
 const RADAR_METRICS = [
@@ -66,22 +60,39 @@ export default function PlayerProfile() {
   const [report, setReport] = useState<string | null>(null)
   const [reportLoading, setReportLoading] = useState(false)
   const [showReport, setShowReport] = useState(false)
+  const [reportLang, setReportLang] = useState<'en' | 'es'>('en')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null)
+  const [similarPlayers, setSimilarPlayers] = useState<SimilarPlayer[]>([])
+  const [averages, setAverages] = useState<AveragesResponse | null>(null)
 
   useEffect(() => {
     if (!playerId) return
     setLoading(true)
     setError('')
+    setReport(null)
+    setShowReport(false)
+    setPhotoUrl(null)
+    setSimilarPlayers([])
+    setAverages(null)
+
     getPlayerMetrics(Number(playerId))
-      .then((d) => { setData(d); setLoading(false) })
+      .then((d) => {
+        setData(d)
+        setLoading(false)
+        const name = d.player_name
+        getPlayerPhoto(name).then((p) => setPhotoUrl(p.photo_url)).catch(() => {})
+        getSimilarPlayers(Number(playerId)).then(setSimilarPlayers).catch(() => {})
+        getPlayerAverages(name).then(setAverages).catch(() => {})
+      })
       .catch(() => { setError('Player not found'); setLoading(false) })
   }, [playerId])
 
   function loadReport() {
     if (report || !playerId) return
     setReportLoading(true)
-    getAiReport(Number(playerId))
+    getAiReport(Number(playerId), reportLang)
       .then((r) => { setReport(r.report); setShowReport(true) })
       .catch(() => setReport('Failed to generate report'))
       .finally(() => setReportLoading(false))
@@ -98,7 +109,8 @@ export default function PlayerProfile() {
   if (error || !data) {
     return (
       <div className="text-center py-32">
-        <p className="text-gray-400 text-lg">{error || 'No data'}</p>
+        <p className="text-gray-400 text-lg mb-4">{error || 'No data'}</p>
+        <Link to="/players" className="text-emerald-400 hover:text-emerald-300 underline">Back to Players</Link>
       </div>
     )
   }
@@ -107,11 +119,13 @@ export default function PlayerProfile() {
   const matchCount = data.match_details.length
 
   const radarData = RADAR_METRICS.map((m) => {
-    const cap = CAPS[m.key] || 5
+    const val = (t[m.key] as number) || 0
+    const avgVal = averages ? (averages[m.key as keyof AveragesResponse] as number) || 0 : 0
+    const maxVal = m.key.includes('pct') ? 100 : Math.max(val * 1.5, avgVal * 1.5, 5)
     return {
       metric: m.label,
-      value: Math.min(100, ((t[m.key] as number) || 0) / cap * 100),
-      avg: m.key.includes('pct') ? 70 : 25,
+      value: Math.min(100, val / maxVal * 100),
+      avg: averages ? Math.min(100, avgVal / maxVal * 100) : undefined,
     }
   })
 
@@ -120,7 +134,6 @@ export default function PlayerProfile() {
   const dribbleKeys = ['dribbles', 'dribbles_completed', 'carries', 'progressive_carries'] as const
   const defenseKeys = ['tackles', 'tackles_won', 'interceptions', 'pressures', 'ball_recoveries'] as const
   const physicalKeys = ['aerial_duels', 'aerial_duels_won', 'duels', 'duels_won', 'fouls_won', 'fouls_committed'] as const
-
   const pctKeys = ['pass_completion_pct', 'shot_accuracy', 'dribble_success_pct', 'duel_success_pct', 'tackle_success_pct', 'aerial_success_pct'] as const
 
   function renderMetrics(keys: readonly string[]) {
@@ -139,9 +152,13 @@ export default function PlayerProfile() {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
       <div className="flex items-center gap-4 mb-8">
-        <div className="w-14 h-14 rounded-full bg-emerald-900/30 border border-emerald-500/30 flex items-center justify-center">
-          <Shield className="w-7 h-7 text-emerald-400" />
-        </div>
+        {photoUrl ? (
+          <img src={photoUrl} alt={data.player_name} className="w-14 h-14 rounded-full object-cover border-2 border-emerald-500/50" />
+        ) : (
+          <div className="w-14 h-14 rounded-full bg-emerald-900/30 border border-emerald-500/30 flex items-center justify-center">
+            <ImageIcon className="w-7 h-7 text-emerald-400" />
+          </div>
+        )}
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white">{data.player_name}</h1>
           {data.match_details[0] && (
@@ -185,6 +202,24 @@ export default function PlayerProfile() {
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-4">
             <h3 className="text-white font-semibold mb-2">Per 90 vs Average</h3>
             <MetricRadar data={radarData} />
+            {averages && (
+              <p className="text-xs text-gray-500 text-center mt-1">Avg from {averages.players_sampled || '?'} players</p>
+            )}
+          </div>
+
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => setReportLang('en')}
+              className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${reportLang === 'en' ? 'bg-emerald-500 text-black' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
+            >
+              🇬🇧 EN
+            </button>
+            <button
+              onClick={() => setReportLang('es')}
+              className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${reportLang === 'es' ? 'bg-emerald-500 text-black' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
+            >
+              🇪🇸 ES
+            </button>
           </div>
 
           <button
@@ -196,8 +231,7 @@ export default function PlayerProfile() {
               <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
               <FileText className="w-5 h-5" />
-            )}
-            AI Scouting Report
+            )}              {reportLang === 'en' ? 'AI Scouting Report' : 'Informe de Scouting'}
           </button>
 
           {report && (
@@ -208,7 +242,7 @@ export default function PlayerProfile() {
               >
                 <span className="flex items-center gap-2">
                   <FileText className="w-4 h-4 text-emerald-400" />
-                  Scout Report
+                  {reportLang === 'en' ? 'Scout Report' : 'Informe'}
                 </span>
                 {showReport ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
@@ -217,6 +251,27 @@ export default function PlayerProfile() {
                   {report}
                 </div>
               )}
+            </div>
+          )}
+
+          {similarPlayers.length > 0 && (
+            <div className="mt-4 bg-gray-900 border border-gray-800 rounded-xl p-4">
+              <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                <Users className="w-4 h-4 text-emerald-400" />
+                Similar Players
+              </h3>
+              <div className="space-y-2">
+                {similarPlayers.slice(0, 5).map((p) => (
+                  <Link
+                    key={p.player_id}
+                    to={`/players/${p.player_id}`}
+                    className="block px-3 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors text-sm"
+                  >
+                    <span className="text-white">{p.player_name}</span>
+                    <span className="text-gray-500 ml-2">{(p.similarity * 100).toFixed(0)}% match</span>
+                  </Link>
+                ))}
+              </div>
             </div>
           )}
         </div>

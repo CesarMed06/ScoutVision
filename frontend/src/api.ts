@@ -1,9 +1,16 @@
 const BASE = '/api/v1'
+const TIMEOUT = 15000
 
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`)
-  if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`)
-  return res.json()
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), TIMEOUT)
+  try {
+    const res = await fetch(`${BASE}${path}`, { signal: controller.signal })
+    if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`)
+    return res.json()
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 export interface PlayerSummary {
@@ -68,6 +75,38 @@ export interface AiReportResponse {
   report: string
 }
 
+export interface SimilarPlayer {
+  player_id: number
+  player_name: string
+  similarity: number
+}
+
+export interface AveragesResponse {
+  goals_per_90: number
+  xg_per_90: number
+  xa_per_90: number
+  key_passes_per_90: number
+  dribbles_per_90: number
+  pass_completion_pct: number
+  tackles_per_90: number
+  aerial_success_pct: number
+  players_sampled?: number
+}
+
+export interface FeaturedPlayer {
+  player_id: number
+  player_name: string
+  team: string
+  match_id: number
+  competition: string
+  season: string
+}
+
+export interface PhotoResponse {
+  player_name: string
+  photo_url: string | null
+}
+
 export async function searchPlayers(query: string): Promise<PlayerSummary[]> {
   return get<PlayerSummary[]>(`/players?q=${encodeURIComponent(query)}`)
 }
@@ -78,6 +117,22 @@ export async function getPlayerMetrics(playerId: number): Promise<PlayerMetricsR
 
 export async function getAiReport(playerId: number, lang = 'en'): Promise<AiReportResponse> {
   return get<AiReportResponse>(`/players/${playerId}/report?lang=${lang}`)
+}
+
+export async function getFeaturedPlayers(): Promise<FeaturedPlayer[]> {
+  return get<FeaturedPlayer[]>('/players/featured')
+}
+
+export async function getPlayerPhoto(playerName: string): Promise<PhotoResponse> {
+  return get<PhotoResponse>(`/players/photo?player_name=${encodeURIComponent(playerName)}`)
+}
+
+export async function getSimilarPlayers(playerId: number): Promise<SimilarPlayer[]> {
+  return get<SimilarPlayer[]>(`/players/${playerId}/similar`)
+}
+
+export async function getPlayerAverages(playerName: string): Promise<AveragesResponse> {
+  return get<AveragesResponse>(`/metrics/averages/${encodeURIComponent(playerName)}`)
 }
 
 export function getVizUrl(type: 'radar' | 'heatmap' | 'passes' | 'shots', playerId: number, matchId?: number): string {

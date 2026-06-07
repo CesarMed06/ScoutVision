@@ -1,30 +1,37 @@
 import { useState, useEffect } from 'react'
 import { Search, Loader2 } from 'lucide-react'
-import { searchPlayers } from '../api'
-import type { PlayerSummary } from '../api'
+import { searchPlayers, getFeaturedPlayers } from '../api'
+import type { PlayerSummary, FeaturedPlayer } from '../api'
 import PlayerCard from '../components/PlayerCard'
 
-const FAMOUS_NAMES = ['Messi', 'Ronaldo', 'Neymar', 'Suárez', 'Lewandowski', 'Mbappé', 'Haaland', 'Salah', 'De Bruyne', 'Kroos']
+function SkeletonCard() {
+  return (
+    <div className="p-4 bg-gray-900 border border-gray-800 rounded-lg animate-pulse">
+      <div className="flex items-start gap-3">
+        <div className="w-10 h-10 rounded-full bg-gray-800 shrink-0" />
+        <div className="flex-1">
+          <div className="h-4 bg-gray-800 rounded w-32 mb-2" />
+          <div className="h-3 bg-gray-800 rounded w-24" />
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function Players() {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<PlayerSummary[]>([])
   const [loading, setLoading] = useState(false)
-const [featured, setFeatured] = useState<PlayerSummary[]>([])
+  const [featured, setFeatured] = useState<FeaturedPlayer[]>([])
+  const [featuredLoading, setFeaturedLoading] = useState(true)
 
   useEffect(() => {
-    Promise.all(
-      FAMOUS_NAMES.map((name) =>
-        searchPlayers(name).then((r) => r.slice(0, 1)).catch(() => [] as PlayerSummary[])
-      )
-    ).then((batches) => {
-      const seen = new Set<number>()
-      setFeatured(batches.flat().filter(p => {
-        if (seen.has(p.player_id)) return false
-        seen.add(p.player_id)
-        return true
-      }).slice(0, 12))
-    })
+    let cancelled = false
+    getFeaturedPlayers()
+      .then((data) => { if (!cancelled) setFeatured(data) })
+      .catch(() => { if (!cancelled) setFeatured([]) })
+      .finally(() => { if (!cancelled) setFeaturedLoading(false) })
+    return () => { cancelled = true }
   }, [])
 
   useEffect(() => {
@@ -79,9 +86,12 @@ const [featured, setFeatured] = useState<PlayerSummary[]>([])
         <>
           <h2 className="text-lg font-semibold text-white mb-4">Featured Players</h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {featured.map((p) => (
-              <PlayerCard key={`${p.player_id}-${p.match_id}`} player={p} />
-            ))}
+            {featuredLoading
+              ? Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
+              : featured.map((p) => (
+                  <PlayerCard key={p.player_id} player={p} />
+                ))
+            }
           </div>
         </>
       )}
