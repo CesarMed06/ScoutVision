@@ -58,7 +58,7 @@ def get_similar_players(player_id: int, top_n: int = 10) -> list[dict]:
             candidates.append((pid, row["player_name"]))
 
     results = []
-    for pid, name in candidates[:50]:
+    for pid, name in candidates[:80]:
         if pid == player_id:
             continue
         try:

@@ -284,7 +284,7 @@ def compute_position_averages(player_name: str) -> dict:
     for k in radar_keys:
         totals[k] = 0
 
-    for name in names[:50]:
+    for name in names[:100]:
         if name == player_name:
             continue
         try:
