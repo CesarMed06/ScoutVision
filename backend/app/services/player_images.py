@@ -1,5 +1,7 @@
 import json
 import logging
+import re
+import unicodedata
 from pathlib import Path
 from urllib.request import urlopen
 
@@ -27,6 +29,12 @@ def _save_cache(cache):
         json.dump(cache, f)
 
 
+def _strip_accents(name: str) -> str:
+    """Remove diacritics/accents from a name (e.g. Suárez -> Suarez)."""
+    nfkd = unicodedata.normalize("NFKD", name)
+    return "".join(c for c in nfkd if not unicodedata.combining(c))
+
+
 def _sportsdb_search(name: str) -> str | None:
     """Search TheSportsDB for a player by name. Returns thumbnail URL or None."""
     try:
@@ -45,23 +53,37 @@ def _sportsdb_search(name: str) -> str | None:
 
 def _search_name_variations(full_name: str) -> str | None:
     """Try multiple name variations to find a photo on TheSportsDB."""
-    # First try the full name
-    result = _sportsdb_search(full_name)
-    if result:
-        return result
-
-    # Try first + last name
+    # Generate name variations to try
+    names_to_try = [full_name]
     parts = full_name.split()
-    if len(parts) >= 3:
-        # Try first_name + last_name
-        short_name = f"{parts[0]} {parts[-1]}"
-        result = _sportsdb_search(short_name)
-        if result:
-            return result
 
-    # Try just the last name (for famous players)
+    # Add first + last name (skip middle names)
+    if len(parts) >= 3:
+        names_to_try.append(f"{parts[0]} {parts[-1]}")
+        names_to_try.append(f"{parts[0]} {parts[1]}")
+
+    # Add just first name + last name (2-part version)
     if len(parts) >= 2:
-        result = _sportsdb_search(parts[-1])
+        names_to_try.append(f"{parts[0]} {parts[-1]}")
+
+    # Add accented versions for each name tried
+    all_variants = []
+    for n in names_to_try:
+        all_variants.append(n)
+        stripped = _strip_accents(n)
+        if stripped != n:
+            all_variants.append(stripped)
+
+    # Deduplicate while preserving order
+    seen = set()
+    unique_variants = []
+    for n in all_variants:
+        if n not in seen:
+            seen.add(n)
+            unique_variants.append(n)
+
+    for name in unique_variants:
+        result = _sportsdb_search(name)
         if result:
             return result
 

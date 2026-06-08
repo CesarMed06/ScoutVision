@@ -57,7 +57,7 @@ function Section({ title, icon, children }: { title: string; icon: React.ReactNo
 export default function PlayerProfile() {
   const { playerId } = useParams()
   const [data, setData] = useState<PlayerMetricsResponse | null>(null)
-  const [report, setReport] = useState<string | null>(null)
+  const [reportCache, setReportCache] = useState<Record<string, string>>({})
   const [reportLoading, setReportLoading] = useState(false)
   const [showReport, setShowReport] = useState(false)
   const [reportLang, setReportLang] = useState<'en' | 'es'>('en')
@@ -71,7 +71,6 @@ export default function PlayerProfile() {
     if (!playerId) return
     setLoading(true)
     setError('')
-    setReport(null)
     setShowReport(false)
     setPhotoUrl(null)
     setSimilarPlayers([])
@@ -81,6 +80,8 @@ export default function PlayerProfile() {
       .then((d) => {
         setData(d)
         setLoading(false)
+        setReportCache({})
+        setShowReport(false)
         const name = d.player_name
         getPlayerPhoto(name).then((p) => setPhotoUrl(p.photo_url)).catch(() => {})
         getSimilarPlayers(Number(playerId)).then(setSimilarPlayers).catch(() => {})
@@ -90,11 +91,11 @@ export default function PlayerProfile() {
   }, [playerId])
 
   function loadReport() {
-    if (report || !playerId) return
+    if (reportCache[reportLang] || !playerId) return
     setReportLoading(true)
     getAiReport(Number(playerId), reportLang)
-      .then((r) => { setReport(r.report); setShowReport(true) })
-      .catch(() => setReport('Failed to generate report'))
+      .then((r) => { setReportCache(prev => ({...prev, [reportLang]: r.report})); setShowReport(true) })
+      .catch(() => setReportCache(prev => ({...prev, [reportLang]: 'Failed to generate report'})))
       .finally(() => setReportLoading(false))
   }
 
@@ -234,7 +235,7 @@ export default function PlayerProfile() {
             )}              {reportLang === 'en' ? 'AI Scouting Report' : 'Informe de Scouting'}
           </button>
 
-          {report && (
+          {reportCache[reportLang] && (
             <div className="mt-4 bg-gray-900 border border-gray-800 rounded-xl">
               <button
                 onClick={() => setShowReport(!showReport)}
@@ -248,7 +249,7 @@ export default function PlayerProfile() {
               </button>
               {showReport && (
                 <div className="px-4 pb-4 text-sm text-gray-300 leading-relaxed whitespace-pre-line max-h-96 overflow-y-auto">
-                  {report}
+                  {reportCache[reportLang]}
                 </div>
               )}
             </div>

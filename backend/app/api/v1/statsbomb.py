@@ -50,25 +50,31 @@ def search_players(q: str = Query(default="")):
 
 @router.get("/players/featured")
 def get_featured_players():
-    names = ["Messi", "Ronaldo", "Neymar", "Suárez", "Lewandowski"]
-    all_players = []
-    seen = set()
-    for name in names:
-        df = statsbomb.search_players(query=name)
-        for _, row in df.iterrows():
-            pid = row["player_id"]
-            if pid not in seen:
-                seen.add(pid)
-                all_players.append({
-                    "player_id": int(pid),
-                    "player_name": row["player_name"],
-                    "team": row.get("team", ""),
-                    "match_id": int(row.get("match_id", 0)),
-                    "competition": row.get("competition", ""),
-                    "season": row.get("season", ""),
-                })
-                break
-    return all_players
+    df = statsbomb.search_players(limit=10000)
+    # Count matches per player and get their info
+    player_matches = {}
+    player_info = {}
+    for _, row in df.iterrows():
+        pid = row["player_id"]
+        player_matches[pid] = player_matches.get(pid, 0) + 1
+        if pid not in player_info:
+            player_info[pid] = {
+                "player_name": row["player_name"],
+                "team": row.get("team", ""),
+                "match_id": int(row.get("match_id", 0)),
+                "competition": row.get("competition", ""),
+                "season": row.get("season", ""),
+            }
+    # Sort by match count descending, take top 50
+    sorted_pids = sorted(player_matches.keys(), key=lambda p: player_matches[p], reverse=True)[:50]
+    return [{
+        "player_id": int(pid),
+        "player_name": player_info[pid]["player_name"],
+        "team": player_info[pid]["team"],
+        "match_id": player_info[pid]["match_id"],
+        "competition": player_info[pid]["competition"],
+        "season": player_info[pid]["season"],
+    } for pid in sorted_pids]
 
 
 @router.get("/players/photo")

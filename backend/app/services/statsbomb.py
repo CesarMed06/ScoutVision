@@ -100,20 +100,21 @@ TARGET_LEAGUES = [
     (16, 4),
 ]
 
-EXTRA_MATCHES = [
-    3825660,
-    3825637,
-    3825645,
-    3825627,
-    3825617,
-    267533,
-    267576,
-    266424,
-    3890508,
-    3890519,
-    3890526,
-    3890547,
-]
+# Map of match_id -> (competition_id, season_id) for matches outside the TARGET_LEAGUES head(50)
+EXTRA_MATCHES = {
+    3825660: (9, 27),   # 1. Bundesliga 2015/2016
+    3825637: (9, 27),
+    3825645: (9, 27),
+    3825627: (9, 27),
+    3825617: (9, 27),
+    267533: (11, 27),   # La Liga 2015/2016 (Messi matches)
+    267576: (11, 27),
+    266424: (11, 27),
+    3890508: (16, 4),   # Champions League 2018/2019
+    3890519: (16, 4),
+    3890526: (16, 4),
+    3890547: (16, 4),
+}
 
 import re
 
@@ -169,26 +170,33 @@ def _build_player_index():
                         }
                     )
 
-    for mid in EXTRA_MATCHES:
+    for mid, (cid, sid) in EXTRA_MATCHES.items():
         if int(mid) in processed:
             continue
         processed.add(int(mid))
-        if int(mid) not in match_league:
-            continue
-        comp_name, season_name = match_league[int(mid)]
+        # Find competition info
+        league_info = match_league.get(int(mid))
+        if not league_info:
+            comp_row = comps[(comps["competition_id"] == cid) & (comps["season_id"] == sid)]
+            if len(comp_row) == 0:
+                continue
+            r = comp_row.iloc[0]
+            league_info = (r["competition_name"], r["season_name"])
+        comp_name, season_name = league_info
         lineups = get_match_lineups(mid)
         for entry in lineups:
             team_name = entry["team"]
-            for p in entry["players"]:                    all_players.append(
-                        {
-                            "player_id": p["player_id"],
-                            "player_name": p["player_name"],
-                            "team": team_name,
-                            "match_id": int(mid),
-                            "competition": _clean_competition_name(comp_name),
-                            "season": season_name,
-                        }
-                    )
+            for p in entry["players"]:
+                all_players.append(
+                    {
+                        "player_id": p["player_id"],
+                        "player_name": p["player_name"],
+                        "team": team_name,
+                        "match_id": int(mid),
+                        "competition": _clean_competition_name(comp_name),
+                        "season": season_name,
+                    }
+                )
 
     df = pd.DataFrame(all_players)
     _save_cache("players_index", json.loads(df.to_json(orient="records")))

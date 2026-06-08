@@ -1,9 +1,9 @@
 const BASE = '/api/v1'
 const TIMEOUT = 15000
 
-async function get<T>(path: string): Promise<T> {
+async function get<T>(path: string, timeoutMs = TIMEOUT): Promise<T> {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), TIMEOUT)
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
     const res = await fetch(`${BASE}${path}`, { signal: controller.signal })
     if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`)
@@ -128,7 +128,7 @@ export async function getPlayerPhoto(playerName: string): Promise<PhotoResponse>
 }
 
 export async function getSimilarPlayers(playerId: number): Promise<SimilarPlayer[]> {
-  return get<SimilarPlayer[]>(`/players/${playerId}/similar`)
+  return get<SimilarPlayer[]>(`/players/${playerId}/similar`, 30000)
 }
 
 export async function getPlayerAverages(playerName: string): Promise<AveragesResponse> {
