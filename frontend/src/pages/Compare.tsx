@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { Loader2, ArrowLeft, ImageIcon, X, RefreshCw, AlertCircle } from 'lucide-react'
 import { getPlayerMetrics, searchPlayers, getPlayerPhoto, getPlayerAverages } from '../api'
@@ -128,9 +128,15 @@ function CompareRow({ label, valA, valB, suffix }: {
   label: string; valA: number; valB: number; suffix: string
 }) {
   const fmt = (v: number) => v % 1 === 0 ? String(v) : v.toFixed(2)
-  const aBetter = valA > valB
-  const bBetter = valB > valA
-  const equal = valA === valB
+  // Minimum 5% threshold before showing green (avoids false positives)
+  const diff = Math.abs(valA - valB)
+  const maxVal = Math.max(Math.abs(valA), Math.abs(valB), 0.001)
+  const pctDiff = diff / maxVal
+  const significant = pctDiff > 0.05
+
+  const aBetter = significant && valA > valB
+  const bBetter = significant && valB > valA
+  const equal = !aBetter && !bBetter
 
   return (
     <tr className="border-b border-gray-800/50 text-sm hover:bg-gray-800/20 transition-colors">
@@ -182,7 +188,7 @@ export default function Compare() {
     fetchPlayer('b', bId)
   }, [aId, bId])
 
-  // Fetch averages when both players are loaded
+  // Fetch averages when both players are loaded (but don't block the comparison)
   useEffect(() => {
     if (!playerA || !playerB) return
     setAveragesLoading(true)
@@ -218,19 +224,18 @@ export default function Compare() {
     setSearchR([])
   }
 
-  const showFullComparison = !!(aId && bId && playerA && playerB)
+  const showFullComparison = !!(playerA && playerB)
 
-  // Build radar data with global averages as reference scale
-  const radarData = (playerA?.totals && playerB?.totals && averages)
+  // Radar data: Player A = "A" (green), Global Average = "Avg" (blue dashed)
+  const radarData = (playerA?.totals && averages)
     ? RADAR_METRICS.map((m) => {
         const valA = (playerA.totals[m.key] as number) || 0
-        const valB = (playerB.totals[m.key] as number) || 0
         const avgVal = (averages[m.key as keyof AveragesResponse] as number) || 0
-        const maxVal = m.key.includes('pct') ? 100 : Math.max(valA, valB, avgVal * 2, 5)
+        const maxVal = m.key.includes('pct') ? 100 : Math.max(valA, avgVal * 2, 5)
         return {
           metric: m.label,
           value: Math.min(100, valA / maxVal * 100),
-          avg: Math.min(100, valB / maxVal * 100),
+          avg: Math.min(100, avgVal / maxVal * 100),
         }
       })
     : []
@@ -319,56 +324,69 @@ export default function Compare() {
 
       {showSearchModal && <SearchModal slot={showSearchModal} />}
 
-      {showFullComparison && averagesLoading && (
-        <div className="flex items-center justify-center gap-2 text-gray-400 py-4">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          <span className="text-sm">Loading averages...</span>
+      {!showFullComparison && (loadingA || loadingB) && (
+        <div className="flex items-center justify-center gap-2 text-gray-400 py-8">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span className="text-sm">Loading player data... (first load may take ~30s)</span>
         </div>
       )}
 
-      {showFullComparison && !averagesLoading && radarData.length > 0 && (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-8">
-          <h3 className="text-white font-semibold mb-1">Comparison Radar</h3>
-          <p className="text-xs text-gray-500 mb-4">Player A (solid) vs Player B (dashed) — scaled against league averages</p>
-          <MetricRadar data={radarData} />
-        </div>
-      )}
+      {showFullComparison && (
+        <>
+          {/* Radar — Player A vs Global Average (blue dashed line) */}
+          {averagesLoading ? (
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-8">
+              <h3 className="text-white font-semibold mb-1">Comparison Radar</h3>
+              <div className="flex items-center justify-center gap-2 text-gray-400 py-12">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span className="text-sm">Computing league averages... (first load ~15s)</span>
+              </div>
+            </div>
+          ) : radarData.length > 0 ? (
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-8">
+              <h3 className="text-white font-semibold mb-1">Comparison Radar</h3>
+              <p className="text-xs text-gray-500 mb-4">Player A vs League Avg (blue dashed) — scaled against league averages</p>
+              <MetricRadar data={radarData} />
+            </div>
+          ) : null}
 
-      {showFullComparison && !averagesLoading && (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-8">
-          <h3 className="text-white font-semibold mb-1">Stats Comparison</h3>
-          <p className="text-xs text-gray-500 mb-4">Green indicates the better value</p>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-xs text-gray-500 uppercase border-b border-gray-800">
-                  <th className="text-left py-2 pr-3 font-medium">Metric</th>
-                  <th className="text-right px-3 font-medium">{playerA.player_name.split(' ').pop()}</th>
-                  <th className="text-right px-3 font-medium">{playerB.player_name.split(' ').pop()}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {COMPARE_METRICS.map((section) => (
-                  <>
-                    <tr className="border-b border-gray-800">
-                      <td colSpan={3} className="py-2 text-xs font-bold text-gray-300 uppercase tracking-wider">
-                        {section.category}
-                      </td>
-                    </tr>
-                    {section.keys.map((m) => (
-                      <CompareRow
-                        key={m.key}
-                        label={m.label}
-                        valA={getField(playerA.totals as Record<string, unknown>, m.key)}
-                        valB={getField(playerB.totals as Record<string, unknown>, m.key)}
-                        suffix={m.suffix}
-                      />
-                    ))}                    </>
+          {/* Stats Comparison — doesn't need averages */}
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-8">
+            <h3 className="text-white font-semibold mb-1">Stats Comparison</h3>
+            <p className="text-xs text-gray-500 mb-4">Green indicates the better value</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs text-gray-500 uppercase border-b border-gray-800">
+                    <th className="text-left py-2 pr-3 font-medium">Metric</th>
+                    <th className="text-right px-3 font-medium">{playerA.player_name.split(' ').pop()}</th>
+                    <th className="text-right px-3 font-medium">{playerB.player_name.split(' ').pop()}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {COMPARE_METRICS.map((section) => (
+                    <React.Fragment key={section.category}>
+                      <tr className="border-b border-gray-800">
+                        <td colSpan={3} className="py-2 text-xs font-bold text-gray-300 uppercase tracking-wider">
+                          {section.category}
+                        </td>
+                      </tr>
+                      {section.keys.map((m) => (
+                        <CompareRow
+                          key={m.key}
+                          label={m.label}
+                          valA={getField(playerA.totals as Record<string, unknown>, m.key)}
+                          valB={getField(playerB.totals as Record<string, unknown>, m.key)}
+                          suffix={m.suffix}
+                        />
+                      ))}
+                    </React.Fragment>
                   ))}
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {!showFullComparison && !loadingA && !loadingB && !aId && !bId && (

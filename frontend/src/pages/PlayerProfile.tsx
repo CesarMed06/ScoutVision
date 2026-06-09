@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { Loader2, Target, Zap, Footprints, Swords, FileText, ChevronDown, ChevronUp, ImageIcon, Users } from 'lucide-react'
-import { getPlayerMetrics, getAiReport, getPlayerPhoto, getSimilarPlayers, getPlayerAverages } from '../api'
+import { Loader2, Target, Zap, Footprints, Swords, FileText, ChevronDown, ChevronUp, ImageIcon, Users, GitCompare, Map, Crosshair, ArrowUpCircle } from 'lucide-react'
+import { getPlayerMetrics, getAiReport, getPlayerPhoto, getSimilarPlayers, getPlayerAverages, getVizUrl } from '../api'
 import type { PlayerMetricsResponse, PlayerMetricsTotals, SimilarPlayer, AveragesResponse } from '../api'
 import MetricRadar from '../components/MetricRadar'
 
@@ -54,6 +54,56 @@ function Section({ title, icon, children }: { title: string; icon: React.ReactNo
   )
 }
 
+function VizModal({ playerId, matchId, matchLabel, onClose }: { playerId: number; matchId: number; matchLabel: string; onClose: () => void }) {
+  const [activeTab, setActiveTab] = useState<'heatmap' | 'passes' | 'shots'>('heatmap')
+  const [imgError, setImgError] = useState(false)
+
+  const tabs = [
+    { key: 'heatmap' as const, label: 'Heatmap', icon: Map },
+    { key: 'passes' as const, label: 'Pass Map', icon: ArrowUpCircle },
+    { key: 'shots' as const, label: 'Shot Map', icon: Crosshair },
+  ]
+
+  return (
+    <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-gray-900 border border-gray-800 rounded-xl w-full max-w-3xl max-h-[90vh] overflow-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-gray-800">
+          <h3 className="text-white font-semibold">Visualizations — {matchLabel}</h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-white text-xl leading-none">&times;</button>
+        </div>
+        <div className="flex gap-1 px-4 pt-3">
+          {tabs.map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => { setActiveTab(tab.key); setImgError(false) }}
+              className={`px-4 py-2 rounded-t-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+                activeTab === tab.key
+                  ? 'bg-gray-800 text-emerald-400 border-b-2 border-emerald-400'
+                  : 'text-gray-500 hover:text-gray-300'
+              }`}
+            >
+              <tab.icon className="w-3.5 h-3.5" />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <div className="p-4">
+          {imgError ? (
+            <p className="text-gray-500 text-center py-12">Not enough data for this visualization</p>
+          ) : (
+            <img
+              src={getVizUrl(activeTab, playerId, matchId)}
+              alt={`${activeTab} for match ${matchId}`}
+              className="w-full rounded-lg"
+              onError={() => setImgError(true)}
+            />
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function PlayerProfile() {
   const { playerId } = useParams()
   const [data, setData] = useState<PlayerMetricsResponse | null>(null)
@@ -66,6 +116,7 @@ export default function PlayerProfile() {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
   const [similarPlayers, setSimilarPlayers] = useState<SimilarPlayer[]>([])
   const [averages, setAverages] = useState<AveragesResponse | null>(null)
+  const [vizMatch, setVizMatch] = useState<{ matchId: number; team: string } | null>(null)
 
   useEffect(() => {
     if (!playerId) return
@@ -75,6 +126,7 @@ export default function PlayerProfile() {
     setPhotoUrl(null)
     setSimilarPlayers([])
     setAverages(null)
+    setVizMatch(null)
 
     getPlayerMetrics(Number(playerId))
       .then((d) => {
@@ -119,10 +171,11 @@ export default function PlayerProfile() {
   const t = data.totals as PlayerMetricsTotals
   const matchCount = data.match_details.length
 
+  // Fixed radar scale: anchored to global averages (like Compare.tsx)
   const radarData = RADAR_METRICS.map((m) => {
     const val = (t[m.key] as number) || 0
     const avgVal = averages ? (averages[m.key as keyof AveragesResponse] as number) || 0 : 0
-    const maxVal = m.key.includes('pct') ? 100 : Math.max(val * 1.5, avgVal * 1.5, 5)
+    const maxVal = m.key.includes('pct') ? 100 : Math.max(avgVal * 3, val * 1.5, 0.5)
     return {
       metric: m.label,
       value: Math.min(100, val / maxVal * 100),
@@ -160,7 +213,7 @@ export default function PlayerProfile() {
             <ImageIcon className="w-7 h-7 text-emerald-400" />
           </div>
         )}
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl sm:text-3xl font-bold text-white">{data.player_name}</h1>
           {data.match_details[0] && (
             <p className="text-gray-400 text-sm">
@@ -263,14 +316,22 @@ export default function PlayerProfile() {
               </h3>
               <div className="space-y-2">
                 {similarPlayers.slice(0, 5).map((p) => (
-                  <Link
-                    key={p.player_id}
-                    to={`/players/${p.player_id}`}
-                    className="block px-3 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors text-sm"
-                  >
-                    <span className="text-white">{p.player_name}</span>
-                    <span className="text-gray-500 ml-2">{(p.similarity * 100).toFixed(0)}% match</span>
-                  </Link>
+                  <div key={p.player_id} className="flex items-center justify-between px-3 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors group">
+                    <Link
+                      to={`/players/${p.player_id}`}
+                      className="flex-1 text-sm"
+                    >
+                      <span className="text-white">{p.player_name}</span>
+                      <span className="text-gray-500 ml-2">{(p.similarity * 100).toFixed(0)}% match</span>
+                    </Link>
+                    <Link
+                      to={`/compare?a=${playerId}&b=${p.player_id}`}
+                      className="p-1.5 text-gray-500 hover:text-emerald-400 opacity-0 group-hover:opacity-100 transition-all"
+                      title="Compare"
+                    >
+                      <GitCompare className="w-4 h-4" />
+                    </Link>
+                  </div>
                 ))}
               </div>
             </div>
@@ -295,11 +356,13 @@ export default function PlayerProfile() {
                 <th className="text-right px-2">Pas</th>
                 <th className="text-right px-2">Drb</th>
                 <th className="text-right px-2">Tkl</th>
+                <th className="text-right px-2">Viz</th>
               </tr>
             </thead>
             <tbody>
               {data.match_details.map((m, i) => {
                 const row = m as Record<string, number | string>
+                const matchId = row.match_id as number
                 return (
                   <tr key={i} className="border-b border-gray-800/50 text-gray-300 hover:bg-gray-800/30 transition-colors">
                     <td className="py-2 pr-4 truncate max-w-40">
@@ -315,6 +378,15 @@ export default function PlayerProfile() {
                     <td className="text-right px-2">{row.passes || 0}</td>
                     <td className="text-right px-2">{row.dribbles || 0}</td>
                     <td className="text-right px-2">{row.tackles || 0}</td>
+                    <td className="text-right px-2">
+                      <button
+                        onClick={() => setVizMatch({ matchId: matchId, team: String(row.team || '') })}
+                        className="p-1.5 text-gray-500 hover:text-emerald-400 transition-colors"
+                        title="View visualizations"
+                      >
+                        <Map className="w-4 h-4" />
+                      </button>
+                    </td>
                   </tr>
                 )
               })}
@@ -322,6 +394,15 @@ export default function PlayerProfile() {
           </table>
         </div>
       </div>
+
+      {vizMatch && (
+        <VizModal
+          playerId={Number(playerId)}
+          matchId={vizMatch.matchId}
+          matchLabel={vizMatch.team}
+          onClose={() => setVizMatch(null)}
+        />
+      )}
     </div>
   )
 }

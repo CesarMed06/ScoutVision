@@ -4,6 +4,7 @@ import Home from './pages/Home'
 import Players from './pages/Players'
 import PlayerProfile from './pages/PlayerProfile'
 import Compare from './pages/Compare'
+import Scout from './pages/Scout'
 import NotFound from './pages/NotFound'
 
 export default function App() {
@@ -15,6 +16,7 @@ export default function App() {
         <Route path="/players" element={<Players />} />
         <Route path="/players/:playerId" element={<PlayerProfile />} />
         <Route path="/compare" element={<Compare />} />
+        <Route path="/scout" element={<Scout />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </div>

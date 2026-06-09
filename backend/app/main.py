@@ -11,6 +11,7 @@ from app.api.v1.metrics import router as metrics_router
 from app.api.v1.visualizations import router as viz_router
 from app.api.v1.ai import router as ai_router
 from app.api.v1.similarity import router as similarity_router
+from app.api.v1.scout import router as scout_router
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +20,9 @@ def _prewarm_cache():
     """Pre-compute metrics for top players at startup so caches are warm."""
     from app.services.statsbomb import search_players
     from app.services.metrics import get_player_metrics_across_matches
-    
-    logger.info("Pre-warming metric cache for top 50 players...")
+    from app.services.similarity import init_vector_db
+
+    logger.info("Pre-warming metric cache for top 200 players...")
     df = search_players(limit=10000)
     seen = set()
     pids = []
@@ -30,13 +32,22 @@ def _prewarm_cache():
             seen.add(pid)
             pids.append(pid)
     count = 0
-    for pid in pids[:50]:
+    for pid in pids[:200]:
         try:
             get_player_metrics_across_matches(int(pid))
             count += 1
         except Exception as e:
             logger.warning(f"Pre-warm failed for pid {pid}: {e}")
-    logger.info(f"Pre-warming complete: {count}/{min(50, len(pids))} players cached")
+    logger.info(f"Pre-warming complete: {count}/200 players cached")
+
+    # Now pre-compute ALL vectors for instant KNN similarity
+    logger.info("Building vector database for KNN similarity...")
+    try:
+        init_vector_db(max_players=2000)
+        from app.services.similarity import VECTOR_DB
+        logger.info(f"Vector DB ready: {len(VECTOR_DB)} players")
+    except Exception as e:
+        logger.error(f"Vector DB init failed: {e}")
 
 
 @asynccontextmanager
@@ -68,6 +79,7 @@ app.include_router(metrics_router, prefix="/api/v1/metrics")
 app.include_router(viz_router, prefix="/api/v1")
 app.include_router(ai_router, prefix="/api/v1")
 app.include_router(similarity_router, prefix="/api/v1")
+app.include_router(scout_router, prefix="/api/v1")
 
 
 @app.get("/health")
