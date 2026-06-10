@@ -1,7 +1,11 @@
+import logging
+
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
 from app.services.metrics import get_player_metrics_across_matches
+
+logger = logging.getLogger(__name__)
 
 METRIC_KEYS = [
     "goals_per_90", "xg_per_90", "xa_per_90",
@@ -90,9 +94,12 @@ def init_vector_db(max_players: int = 2000):
                     },
                 }
                 count += 1
+                if count % 100 == 0:
+                    logger.info(f"Vector DB: {count}/{len(pids[:max_players])} players indexed...")
         except Exception:
             continue
 
+    logger.info(f"Vector DB build complete: {count} players indexed")
     _VECTOR_DB_INITIALIZED = True
 
 
@@ -124,3 +131,55 @@ def get_similar_players(player_id: int, top_n: int = 10) -> list[dict]:
     
     results.sort(key=lambda x: x["similarity"], reverse=True)
     return results[:top_n]
+
+
+RADAR_KEYS = [
+    "goals_per_90", "xg_per_90", "xa_per_90",
+    "key_passes_per_90", "dribbles_per_90",
+    "tackles_per_90",
+]
+
+PCT_KEYS = ["pass_completion_pct", "aerial_success_pct"]
+
+
+def get_global_averages() -> dict:
+    """Compute league-wide averages from VECTOR_DB totals (instant)."""
+    if not _VECTOR_DB_INITIALIZED:
+        init_vector_db()
+    
+    totals = {k: 0.0 for k in (RADAR_KEYS + PCT_KEYS)}
+    # Accumulate raw sums for percentage metrics (don't average per-player %)
+    sum_passes_completed = 0
+    sum_passes = 0
+    sum_aerial_won = 0
+    sum_aerials = 0
+    count = 0
+    
+    for pid, data in VECTOR_DB.items():
+        player_totals = data.get("totals", {})
+        minutes = player_totals.get("minutes", 0) or 1
+        
+        totals["goals_per_90"] += round(player_totals.get("goals", 0) / minutes * 90, 2)
+        totals["xg_per_90"] += round(player_totals.get("xg", 0) / minutes * 90, 2)
+        totals["xa_per_90"] += round(player_totals.get("xa", 0) / minutes * 90, 2)
+        totals["key_passes_per_90"] += round(player_totals.get("key_passes", 0) / minutes * 90, 2)
+        totals["dribbles_per_90"] += round(player_totals.get("dribbles", 0) / minutes * 90, 2)
+        totals["tackles_per_90"] += round(player_totals.get("tackles", 0) / minutes * 90, 2)
+        
+        # Accumulate raw totals for correct percentage averaging
+        sum_passes_completed += player_totals.get("passes_completed", 0)
+        sum_passes += player_totals.get("passes", 0)
+        sum_aerial_won += player_totals.get("aerial_duels_won", 0)
+        sum_aerials += player_totals.get("aerial_duels", 0)
+        
+        count += 1
+
+    if count == 0:
+        return {k: 0 for k in (RADAR_KEYS + PCT_KEYS)}
+
+    avgs = {k: round(totals[k] / count, 2) for k in (RADAR_KEYS + PCT_KEYS)}
+    # Correct percentage averages: sum(raw) / sum(total), not avg of per-player %
+    avgs["pass_completion_pct"] = round(sum_passes_completed / (sum_passes or 1) * 100, 1)
+    avgs["aerial_success_pct"] = round(sum_aerial_won / (sum_aerials or 1) * 100, 1)
+    avgs["players_sampled"] = count
+    return avgs

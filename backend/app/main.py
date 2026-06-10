@@ -2,6 +2,8 @@ import logging
 import threading
 from contextlib import asynccontextmanager
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s", datefmt="%H:%M:%S")
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -17,35 +19,13 @@ logger = logging.getLogger(__name__)
 
 
 def _prewarm_cache():
-    """Pre-compute metrics for top players at startup so caches are warm."""
-    from app.services.statsbomb import search_players
-    from app.services.metrics import get_player_metrics_across_matches
-    from app.services.similarity import init_vector_db
+    """Pre-compute vector DB at startup for instant KNN similarity."""
+    from app.services.similarity import init_vector_db, VECTOR_DB
 
-    logger.info("Pre-warming metric cache for top 200 players...")
-    df = search_players(limit=10000)
-    seen = set()
-    pids = []
-    for _, row in df.iterrows():
-        pid = row["player_id"]
-        if pid not in seen:
-            seen.add(pid)
-            pids.append(pid)
-    count = 0
-    for pid in pids[:200]:
-        try:
-            get_player_metrics_across_matches(int(pid))
-            count += 1
-        except Exception as e:
-            logger.warning(f"Pre-warm failed for pid {pid}: {e}")
-    logger.info(f"Pre-warming complete: {count}/200 players cached")
-
-    # Now pre-compute ALL vectors for instant KNN similarity
     logger.info("Building vector database for KNN similarity...")
     try:
         init_vector_db(max_players=2000)
-        from app.services.similarity import VECTOR_DB
-        logger.info(f"Vector DB ready: {len(VECTOR_DB)} players")
+        logger.info(f"Vector DB ready: {len(VECTOR_DB)} players indexed")
     except Exception as e:
         logger.error(f"Vector DB init failed: {e}")
 
@@ -84,4 +64,10 @@ app.include_router(scout_router, prefix="/api/v1")
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok", "version": "0.1.0"}
+    from app.services.similarity import VECTOR_DB, _VECTOR_DB_INITIALIZED
+    return {
+        "status": "ok",
+        "version": "0.1.0",
+        "vector_db_initialized": _VECTOR_DB_INITIALIZED,
+        "vector_db_size": len(VECTOR_DB) if _VECTOR_DB_INITIALIZED else 0,
+    }
