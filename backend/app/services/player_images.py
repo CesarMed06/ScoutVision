@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+import threading
 import unicodedata
 from pathlib import Path
 from urllib.request import urlopen
@@ -13,20 +14,33 @@ DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 CACHE_FILE = DATA_DIR / "player_images_cache.json"
+CACHE_LOCK = threading.Lock()
 
 SPORTSDB_URL = "https://www.thesportsdb.com/api/v1/json/3/searchplayers.php?p="
 
 
 def _load_cache():
-    if CACHE_FILE.exists():
-        with open(CACHE_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {}
+    with CACHE_LOCK:
+        if CACHE_FILE.exists():
+            try:
+                with open(CACHE_FILE, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except json.JSONDecodeError:
+                logger.warning("Photo cache corrupted, resetting...")
+                try:
+                    CACHE_FILE.unlink(missing_ok=True)
+                except OSError:
+                    pass
+        return {}
 
 
 def _save_cache(cache):
-    with open(CACHE_FILE, "w", encoding="utf-8") as f:
-        json.dump(cache, f)
+    """Atomic write — never leaves a corrupted file on disk."""
+    with CACHE_LOCK:
+        tmp = CACHE_FILE.with_suffix(".tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(cache, f)
+        tmp.replace(CACHE_FILE)
 
 
 def _strip_accents(name: str) -> str:
