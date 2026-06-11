@@ -1,8 +1,11 @@
 from functools import lru_cache
+from pathlib import Path
 
 import pandas as pd
 
 from app.services.statsbomb import get_match_events, search_players
+
+METRICS_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 
 FINAL_THIRD_X = 80
 MIN_PROGRESSIVE_DIST = 10
@@ -96,22 +99,22 @@ def compute_player_metrics(events: pd.DataFrame, player: str) -> dict:
                     xa += val
     xa = round(xa, 2)
 
+    # Vectorized progressive passes (avoids O(n) iterrows)
     progressive_passes = 0
     passes_into_final_third = 0
-    for _, p in passes.iterrows():
-        loc = p.get("location")
-        end_loc = p.get("pass_end_location")
-        if (
-            isinstance(loc, (list, tuple))
-            and len(loc) >= 2
-            and isinstance(end_loc, (list, tuple))
-            and len(end_loc) >= 2
-        ):
-            dx = end_loc[0] - loc[0]
-            if dx > MIN_PROGRESSIVE_DIST:
-                progressive_passes += 1
-            if end_loc[0] > FINAL_THIRD_X:
-                passes_into_final_third += 1
+    if "location" in passes.columns and "pass_end_location" in passes.columns:
+        locs = passes["location"].dropna()
+        ends = passes["pass_end_location"].dropna()
+        idx = locs.index.intersection(ends.index)
+        if len(idx) > 0:
+            dx_series = pd.Series(
+                [ends[i][0] - locs[i][0] for i in idx], index=idx
+            )
+            progressive_passes = int((dx_series > MIN_PROGRESSIVE_DIST).sum())
+            final_third = pd.Series(
+                [ends[i][0] for i in idx], index=idx
+            )
+            passes_into_final_third = int((final_third > FINAL_THIRD_X).sum())
 
     pass_cross = _col(passes, "pass_cross")
     crosses = len(passes[pass_cross == True])
@@ -129,19 +132,18 @@ def compute_player_metrics(events: pd.DataFrame, player: str) -> dict:
         else 0
     )
 
+    # Vectorized progressive carries (avoids O(n) iterrows)
     num_carries = len(carries)
     progressive_carries = 0
-    for _, c in carries.iterrows():
-        loc = c.get("location")
-        end_loc = c.get("carry_end_location")
-        if (
-            isinstance(loc, (list, tuple))
-            and len(loc) >= 2
-            and isinstance(end_loc, (list, tuple))
-            and len(end_loc) >= 2
-        ):
-            if end_loc[0] - loc[0] > MIN_PROGRESSIVE_DIST:
-                progressive_carries += 1
+    if "location" in carries.columns and "carry_end_location" in carries.columns:
+        locs = carries["location"].dropna()
+        ends = carries["carry_end_location"].dropna()
+        idx = locs.index.intersection(ends.index)
+        if len(idx) > 0:
+            dx_series = pd.Series(
+                [ends[i][0] - locs[i][0] for i in idx], index=idx
+            )
+            progressive_carries = int((dx_series > MIN_PROGRESSIVE_DIST).sum())
 
     num_duels = len(duels)
     duel_outcome = _col(duels, "duel_outcome")
@@ -225,8 +227,19 @@ def get_match_metrics(match_id: int) -> list[dict]:
     return results
 
 
-@lru_cache(maxsize=64)
+@lru_cache(maxsize=512)
 def get_player_metrics_across_matches(player_id: int) -> list[dict]:
+    """Compute per-match metrics for a player, cached in memory (512 slots) and persisted to disk."""
+    # Check disk cache first (survives restarts)
+    cache_path = METRICS_DIR / f"metrics_{player_id}.json"
+    if cache_path.exists():
+        try:
+            import json
+            with open(cache_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            cache_path.unlink(missing_ok=True)
+
     from app.services.statsbomb import search_players
 
     player_rows = search_players(limit=10000)
@@ -259,6 +272,17 @@ def get_player_metrics_across_matches(player_id: int) -> list[dict]:
             metrics["competition"] = match_info.get("competition", "")
             metrics["season"] = match_info.get("season", "")
             all_metrics.append(metrics)
+
+    # Persist to disk so 2nd request is instant (even after restart)
+    try:
+        import json
+        tmp = cache_path.with_suffix(".tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(all_metrics, f, default=str)
+        tmp.replace(cache_path)
+    except IOError:
+        pass
+
     return all_metrics
 
 

@@ -40,7 +40,11 @@ def _save_cache(cache):
         tmp = CACHE_FILE.with_suffix(".tmp")
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(cache, f)
-        tmp.replace(CACHE_FILE)
+        try:
+            tmp.replace(CACHE_FILE)
+        except OSError:
+            # Windows: os.replace fails if target is open. Keep old cache intact.
+            tmp.unlink(missing_ok=True)
 
 
 def _strip_accents(name: str) -> str:

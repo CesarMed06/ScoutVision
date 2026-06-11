@@ -1,4 +1,6 @@
+import json
 import logging
+from pathlib import Path
 
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
@@ -6,6 +8,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 from app.services.metrics import get_player_metrics_across_matches
 
 logger = logging.getLogger(__name__)
+
+DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
+VECTOR_DB_PATH = DATA_DIR / "vector_db.json"
 
 METRIC_KEYS = [
     "goals_per_90", "xg_per_90", "xa_per_90",
@@ -18,6 +23,35 @@ METRIC_KEYS = [
 # In-memory vector database: {player_id: {"vector": [...], "name": str, "totals": {...}, "player_info": {...}}}
 VECTOR_DB: dict[int, dict] = {}
 _VECTOR_DB_INITIALIZED = False
+
+
+def _load_vector_db() -> bool:
+    """Load VECTOR_DB from disk if it exists (survives restarts)."""
+    global VECTOR_DB, _VECTOR_DB_INITIALIZED
+    if VECTOR_DB_PATH.exists():
+        try:
+            with open(VECTOR_DB_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            VECTOR_DB = {int(k): v for k, v in data.items()}
+            _VECTOR_DB_INITIALIZED = True
+            logger.info(f"Loaded Vector DB from disk: {len(VECTOR_DB)} players")
+            return True
+        except (json.JSONDecodeError, KeyError, ValueError) as e:
+            logger.warning(f"Vector DB file corrupted, rebuilding: {e}")
+            VECTOR_DB_PATH.unlink(missing_ok=True)
+    return False
+
+
+def _save_vector_db():
+    """Persist VECTOR_DB to disk so it survives restarts."""
+    try:
+        tmp = VECTOR_DB_PATH.with_suffix(".tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump({str(k): v for k, v in VECTOR_DB.items()}, f)
+        tmp.replace(VECTOR_DB_PATH)
+        logger.info(f"Vector DB saved to disk: {len(VECTOR_DB)} players")
+    except Exception as e:
+        logger.error(f"Failed to save Vector DB: {e}")
 
 
 def _accumulate_totals(metrics_list: list[dict]) -> dict:
@@ -59,12 +93,17 @@ def _compute_vector(metrics_list: list[dict]) -> list[float]:
 
 
 def init_vector_db(max_players: int = 2000):
-    """Pre-compute vectors + full totals for all players and store in memory."""
-    from app.services.statsbomb import search_players
-
+    """Pre-compute vectors + full totals for all players and store in memory.
+    Loads from disk first if available (instant on restart)."""
     global VECTOR_DB, _VECTOR_DB_INITIALIZED
     if _VECTOR_DB_INITIALIZED:
         return
+
+    # Try loading from disk first (survives restarts)
+    if _load_vector_db():
+        return
+
+    from app.services.statsbomb import search_players
 
     df = search_players(limit=10000)
     seen = set()
@@ -101,12 +140,15 @@ def init_vector_db(max_players: int = 2000):
 
     logger.info(f"Vector DB build complete: {count} players indexed")
     _VECTOR_DB_INITIALIZED = True
+    # Persist to disk so restarts are instant
+    _save_vector_db()
 
 
 def get_similar_players(player_id: int, top_n: int = 10) -> list[dict]:
-    # Ensure vector DB is initialized
+    # Don't block the request thread — return empty if DB isn't ready yet (it builds in background)
     if not _VECTOR_DB_INITIALIZED:
-        init_vector_db()
+        logger.info("Vector DB not yet initialized, returning empty similarity results")
+        return []
     
     target_metrics = get_player_metrics_across_matches(player_id)
     if not target_metrics:
@@ -143,9 +185,11 @@ PCT_KEYS = ["pass_completion_pct", "aerial_success_pct"]
 
 
 def get_global_averages() -> dict:
-    """Compute league-wide averages from VECTOR_DB totals (instant)."""
+    """Compute league-wide averages from VECTOR_DB totals (instant).
+    Returns zero-filled dict if DB isn't ready yet (builds in background)."""
     if not _VECTOR_DB_INITIALIZED:
-        init_vector_db()
+        logger.info("Vector DB not yet initialized, returning zero-filled averages")
+        return {k: 0 for k in (RADAR_KEYS + PCT_KEYS)}
     
     totals = {k: 0.0 for k in (RADAR_KEYS + PCT_KEYS)}
     # Accumulate raw sums for percentage metrics (don't average per-player %)

@@ -208,5 +208,5 @@ def generate_scouting_report(player_id: int, lang: str = "en") -> str:
         _report_cache[key] = (report, now)
         return report
     except Exception as e:
-        logger.error(f"Groq API error for player {player_id}: {e}")
-        return f"GROQ_API_ERROR: {str(e)}"
+        logger.error(f"Groq API error for player {player_id}: {str(e)[:200]}")
+        return f"GROQ_API_ERROR: {str(e)[:200]}"
