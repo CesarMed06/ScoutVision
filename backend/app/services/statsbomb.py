@@ -205,9 +205,11 @@ def _build_player_index():
 
 def search_players(query: str = "", limit: int = 100) -> pd.DataFrame:
     cached = _load_cached("players_index")
-    if cached is not None:
+    if cached is not None and len(cached) > 100:
         df = pd.DataFrame(cached)
     else:
+        if cached is not None:
+            _cache_path("players_index").unlink(missing_ok=True)
         df = _build_player_index()
     if query:
         q = query.replace("ue", "ü").replace("oe", "ö").replace("ae", "ä")
