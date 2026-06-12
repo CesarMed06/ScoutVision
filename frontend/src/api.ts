@@ -13,6 +13,13 @@ async function get<T>(path: string, timeoutMs = TIMEOUT): Promise<T> {
   }
 }
 
+export interface HealthResponse {
+  status: string
+  version: string
+  vector_db_initialized: boolean
+  vector_db_size: number
+}
+
 export interface PlayerSummary {
   player_id: number
   player_name: string
@@ -138,4 +145,16 @@ export async function getPlayerAverages(playerName: string): Promise<AveragesRes
 export function getVizUrl(type: 'radar' | 'heatmap' | 'passes' | 'shots', playerId: number, matchId?: number): string {
   if (type === 'radar') return `${BASE}/viz/player/${playerId}/radar`
   return `${BASE}/viz/player/${playerId}/${type}?match_id=${matchId}`
+}
+
+export async function getHealth(): Promise<HealthResponse> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 5000)
+  try {
+    const res = await fetch('/health', { signal: controller.signal })
+    if (!res.ok) throw new Error(`Health check failed: ${res.status}`)
+    return res.json()
+  } finally {
+    clearTimeout(timer)
+  }
 }

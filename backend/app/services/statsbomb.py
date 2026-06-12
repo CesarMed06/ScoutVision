@@ -98,6 +98,9 @@ TARGET_LEAGUES = [
     (2, 27),
     (11, 27),
     (16, 4),
+    (55, 43),
+    (223, 282),
+    (37, 42),
 ]
 
 # Map of match_id -> (competition_id, season_id) for matches outside the TARGET_LEAGUES head(50)

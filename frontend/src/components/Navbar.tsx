@@ -1,8 +1,24 @@
+import { useEffect, useState } from 'react'
 import { Shield, Search, Home, GitCompare, SlidersHorizontal } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
+import { getHealth } from '../api'
 
 export default function Navbar() {
   const loc = useLocation()
+  const [dbStatus, setDbStatus] = useState<'loading' | 'ready' | number>('loading')
+
+  useEffect(() => {
+    let active = true
+    function poll() {
+      getHealth().then(h => {
+        if (!active) return
+        if (h.vector_db_initialized && h.vector_db_size > 0) setDbStatus(h.vector_db_size)
+        else setTimeout(poll, 2000)
+      }).catch(() => { if (active) setTimeout(poll, 5000) })
+    }
+    poll()
+    return () => { active = false }
+  }, [])
 
   return (
     <nav className="border-b border-gray-800 bg-gray-950/90 backdrop-blur-sm sticky top-0 z-50">
@@ -10,6 +26,16 @@ export default function Navbar() {
         <Link to="/" className="flex items-center gap-2 text-white hover:text-emerald-400 transition-colors">
           <Shield className="w-6 h-6 text-emerald-400" />
           <span className="font-bold text-lg tracking-tight">ScoutVision</span>
+          <span
+            className={`ml-1 text-[10px] px-1.5 py-0.5 rounded-full border ${
+              dbStatus === 'loading'
+                ? 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10'
+                : 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
+            }`}
+            title={dbStatus === 'loading' ? 'Indexing players...' : `${dbStatus} players indexed`}
+          >
+            {dbStatus === 'loading' ? '···' : dbStatus}
+          </span>
         </Link>
 
         <div className="flex items-center gap-1">

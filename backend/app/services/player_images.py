@@ -3,6 +3,7 @@ import logging
 import re
 import threading
 import unicodedata
+import urllib.parse
 from pathlib import Path
 from urllib.request import urlopen
 
@@ -35,7 +36,6 @@ def _load_cache():
 
 
 def _save_cache(cache):
-    """Atomic write — never leaves a corrupted file on disk."""
     with CACHE_LOCK:
         tmp = CACHE_FILE.with_suffix(".tmp")
         with open(tmp, "w", encoding="utf-8") as f:
@@ -43,7 +43,6 @@ def _save_cache(cache):
         try:
             tmp.replace(CACHE_FILE)
         except OSError:
-            # Windows: os.replace fails if target is open. Keep old cache intact.
             tmp.unlink(missing_ok=True)
 
 
@@ -108,12 +107,50 @@ def _search_name_variations(full_name: str) -> str | None:
     return None
 
 
+def _wikipedia_search(name: str) -> str | None:
+    try:
+        search_url = (
+            "https://en.wikipedia.org/w/api.php?action=query&list=search"
+            f"&srsearch={urllib.parse.quote(name + ' footballer')}"
+            "&format=json&srlimit=1"
+        )
+        with urlopen(search_url, timeout=5) as res:
+            data = json.loads(res.read().decode())
+        results = data.get("query", {}).get("search", [])
+        if not results:
+            return None
+        title = urllib.parse.quote(results[0]["title"])
+        img_url = (
+            f"https://en.wikipedia.org/w/api.php?action=query&titles={title}"
+            "&prop=pageimages&format=json&pithumbsize=200"
+        )
+        with urlopen(img_url, timeout=5) as res:
+            data = json.loads(res.read().decode())
+        for page in data.get("query", {}).get("pages", {}).values():
+            thumb = page.get("thumbnail", {}).get("source")
+            if thumb:
+                return thumb
+        return None
+    except Exception as e:
+        logger.warning(f"Wikipedia error for '{name}': {e}")
+        return None
+
+
+def _ui_avatar_url(player_name: str) -> str:
+    initials = "+".join([p[0].upper() for p in player_name.split()[:2]])
+    return f"https://ui-avatars.com/api/?name={initials}&background=064e3b&color=34d399&size=200&bold=true&font-size=0.4"
+
+
 def get_player_image(player_name: str) -> str | None:
     cache = _load_cache()
-    if player_name in cache:
-        return cache[player_name].get("thumb")
+    if player_name in cache and cache[player_name].get("thumb"):
+        return cache[player_name]["thumb"]
 
     thumb = _search_name_variations(player_name)
+    if not thumb:
+        thumb = _wikipedia_search(player_name)
+    if not thumb:
+        thumb = _ui_avatar_url(player_name)
 
     cache[player_name] = {"thumb": thumb}
     _save_cache(cache)
