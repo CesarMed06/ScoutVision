@@ -22,13 +22,12 @@ logger = logging.getLogger(__name__)
 
 
 def _prewarm_cache():
-    """Pre-compute vector DB at startup for instant KNN similarity."""
-    from app.services.similarity import init_vector_db, VECTOR_DB
+    import app.services.similarity as sim
 
     logger.info("Building vector database for KNN similarity...")
     try:
-        init_vector_db(max_players=2000)
-        logger.info(f"Vector DB ready: {len(VECTOR_DB)} players indexed")
+        sim.init_vector_db(max_players=2000)
+        logger.info(f"Vector DB ready: {len(sim.VECTOR_DB)} players indexed")
     except Exception as e:
         logger.error(f"Vector DB init failed: {e}")
 
@@ -72,10 +71,10 @@ app.include_router(scout_router, prefix="/api/v1")
 
 @app.get("/health")
 def health_check():
-    from app.services.similarity import VECTOR_DB, _VECTOR_DB_INITIALIZED
+    import app.services.similarity as sim
     return {
         "status": "ok",
         "version": "0.1.0",
-        "vector_db_initialized": _VECTOR_DB_INITIALIZED,
-        "vector_db_size": len(VECTOR_DB) if _VECTOR_DB_INITIALIZED else 0,
+        "vector_db_initialized": sim._VECTOR_DB_INITIALIZED,
+        "vector_db_size": len(sim.VECTOR_DB) if sim._VECTOR_DB_INITIALIZED else 0,
     }
