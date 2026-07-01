@@ -1,4 +1,4 @@
-from app.services.similarity import VECTOR_DB
+import app.services.similarity as sim
 
 
 def scout_players(
@@ -15,13 +15,8 @@ def scout_players(
     sort_dir: str = "desc",
     limit: int = 50,
 ) -> list[dict]:
-    # Ensure VECTOR_DB is populated
-    if not VECTOR_DB:
-        from app.services.similarity import init_vector_db
-        init_vector_db(max_players=2000)
-
     results = []
-    for pid, data in VECTOR_DB.items():
+    for pid, data in sim.VECTOR_DB.items():
         totals = data.get("totals", {})
         if not totals:
             continue

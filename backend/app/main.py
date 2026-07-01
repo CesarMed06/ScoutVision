@@ -10,7 +10,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-from app.core.config import settings
+from app.core.config import APP_VERSION, settings
 from app.api.v1.statsbomb import router as statsbomb_router
 from app.api.v1.metrics import router as metrics_router
 from app.api.v1.visualizations import router as viz_router
@@ -46,7 +46,7 @@ limiter = Limiter(key_func=get_remote_address, default_limits=["120/minute"])
 app = FastAPI(
     title="ScoutVision AI",
     description="AI-powered football scouting engine",
-    version="0.1.0",
+    version=APP_VERSION,
     lifespan=lifespan,
 )
 
@@ -74,7 +74,7 @@ def health_check():
     import app.services.similarity as sim
     return {
         "status": "ok",
-        "version": "0.1.0",
+        "version": APP_VERSION,
         "vector_db_initialized": sim._VECTOR_DB_INITIALIZED,
         "vector_db_size": len(sim.VECTOR_DB) if sim._VECTOR_DB_INITIALIZED else 0,
     }

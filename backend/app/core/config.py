@@ -5,6 +5,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+APP_VERSION = "1.0.0"
+
+
 class Settings:
     groq_api_key: str = os.getenv("GROQ_API_KEY", "")
     statsbomb_data_dir: str = os.getenv("STATSBOMB_DATA_DIR", "./data")
