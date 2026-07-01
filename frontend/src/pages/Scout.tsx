@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Loader2, SlidersHorizontal, Search, ArrowUpDown, Target, ImageIcon } from 'lucide-react'
+import { Loader2, SlidersHorizontal, Search, ArrowUpDown, Target, ImageIcon, ChevronLeft, ChevronRight } from 'lucide-react'
 import { getPlayerPhoto } from '../api'
 
 interface ScoutFilters {
@@ -14,6 +14,8 @@ interface ScoutFilters {
   min_aerial_pct: number
   min_pressures_per_90: number
 }
+
+const PAGE_SIZE = 10
 
 const DEFAULT_FILTERS: ScoutFilters = {
   min_goals_per_90: 0,
@@ -89,6 +91,7 @@ export default function Scout() {
   const [sortBy, setSortBy] = useState('goals_per_90')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [photos, setPhotos] = useState<Record<number, string | null>>({})
+  const [page, setPage] = useState(1)
 
   function buildQuery() {
     const params = new URLSearchParams()
@@ -107,6 +110,7 @@ export default function Scout() {
     try {
       const data = await scoutSearch(buildQuery())
       setResults(data)
+      setPage(1)
     } catch {
       setResults([])
     }
@@ -130,6 +134,8 @@ export default function Scout() {
   }, [results])
 
   const activeCount = Object.values(filters).filter(v => v > 0).length
+  const totalPages = Math.ceil(results.length / PAGE_SIZE)
+  const paged = results.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
@@ -224,9 +230,12 @@ export default function Scout() {
 
       {!loading && results.length > 0 && (
         <>
-          <p className="text-gray-400 text-sm mb-3">{results.length} players found</p>
+          <p className="text-gray-400 text-sm mb-3">
+            {results.length} players found
+            {totalPages > 1 && <span className="text-gray-600"> · Page {page}/{totalPages}</span>}
+          </p>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {results.map((p) => (
+            {paged.map((p) => (
               <Link
                 key={p.player_id}
                 to={`/players/${p.player_id}`}
@@ -257,6 +266,29 @@ export default function Scout() {
               </Link>
             ))}
           </div>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-3 mt-6">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Previous
+              </button>
+              <span className="text-xs text-gray-500">
+                Page {page} of {totalPages}
+              </span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+              >
+                Next
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </>
       )}
 
