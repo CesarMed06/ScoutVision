@@ -126,6 +126,53 @@ export async function getAiReport(playerId: number, lang = 'en'): Promise<AiRepo
   return get<AiReportResponse>(`/players/${playerId}/report?lang=${lang}`)
 }
 
+export async function getAiReportStream(
+  playerId: number,
+  lang: string,
+  onChunk: (text: string) => void,
+  onDone: () => void,
+  onError: (err: string) => void
+): Promise<void> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 60000)
+  try {
+    const res = await fetch(`${BASE}/players/${playerId}/report-stream?lang=${lang}`, { signal: controller.signal })
+    if (!res.ok) {
+      onError(`HTTP ${res.status}`)
+      return
+    }
+    const reader = res.body?.getReader()
+    if (!reader) {
+      onError('No response body')
+      return
+    }
+    const decoder = new TextDecoder()
+    let buffer = ''
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.slice(6))
+            if (data.error) { onError(data.error); return }
+            if (data.done) { onDone(); return }
+            if (data.text) onChunk(data.text)
+          } catch { /* skip invalid JSON lines */ }
+        }
+      }
+    }
+    onDone()
+  } catch (e: unknown) {
+    onError(e instanceof Error ? (e.name === 'AbortError' ? 'Report timed out' : e.message) : 'Stream failed')
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 export async function getFeaturedPlayers(): Promise<FeaturedPlayer[]> {
   return get<FeaturedPlayer[]>('/players/featured')
 }
@@ -134,8 +181,9 @@ export async function getPlayerPhoto(playerName: string): Promise<PhotoResponse>
   return get<PhotoResponse>(`/players/photo?player_name=${encodeURIComponent(playerName)}`)
 }
 
-export async function getSimilarPlayers(playerId: number): Promise<SimilarPlayer[]> {
-  return get<SimilarPlayer[]>(`/players/${playerId}/similar`, 30000)
+export async function getSimilarPlayers(playerId: number, position?: string): Promise<SimilarPlayer[]> {
+  const posParam = position ? `&position=${encodeURIComponent(position)}` : ''
+  return get<SimilarPlayer[]>(`/players/${playerId}/similar?top_n=10${posParam}`, 30000)
 }
 
 export async function getPlayerAverages(playerName: string): Promise<AveragesResponse> {

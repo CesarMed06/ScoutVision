@@ -1,3 +1,4 @@
+import json
 import logging
 import time
 
@@ -128,28 +129,8 @@ DATA ANALYZED:
 IMPORTANT: Be direct, no empty praise. If the numbers are bad, say it. If they're good, acknowledge it. Use a professional but natural tone, like a scout talking to a sporting director. Do NOT use generic ChatGPT phrases. Every sentence must be backed by a specific data point from the metrics."""
 
 
-def generate_scouting_report(player_id: int, lang: str = "en") -> str:
-    key = (player_id, lang)
-    now = time.time()
-    cached = _report_cache.get(key)
-    if cached and now - cached[1] < REPORT_CACHE_TTL:
-        return cached[0]
-    if not settings.groq_api_key:
-        return "GROQ_API_KEY not configured. Add it to your .env file."
-
-    metrics_data = get_player_metrics_across_matches(player_id)
-    if not metrics_data:
-        return f"No match data found for player ID {player_id}."
-
+def _compute_totals(metrics_data: list[dict]) -> dict:
     first = metrics_data[0]
-    player_info = {
-        "player_id": player_id,
-        "player_name": first.get("player", "Unknown"),
-        "team": first.get("team", ""),
-        "competition": first.get("competition", ""),
-        "season": first.get("season", ""),
-    }
-
     totals = {}
     skip_keys = {"player", "match_id", "team", "competition", "season"}
     for key in first:
@@ -187,8 +168,39 @@ def generate_scouting_report(player_id: int, lang: str = "en") -> str:
     totals["tackle_success_pct"] = round(totals.get("tackles_won", 0) / tackles * 100, 1)
     aerials = totals.get("aerial_duels", 0) or 1
     totals["aerial_success_pct"] = round(totals.get("aerial_duels_won", 0) / aerials * 100, 1)
+    return totals
 
+
+def _prepare_prompt(player_id: int, lang: str) -> tuple[str, dict, dict]:
+    metrics_data = get_player_metrics_across_matches(player_id)
+    if not metrics_data:
+        return "", {}, {}
+
+    first = metrics_data[0]
+    player_info = {
+        "player_id": player_id,
+        "player_name": first.get("player", "Unknown"),
+        "team": first.get("team", ""),
+        "competition": first.get("competition", ""),
+        "season": first.get("season", ""),
+    }
+    totals = _compute_totals(metrics_data)
     prompt = _build_report_prompt(player_info, totals, metrics_data, lang)
+    return prompt, player_info, totals
+
+
+def generate_scouting_report(player_id: int, lang: str = "en") -> str:
+    key = (player_id, lang)
+    now = time.time()
+    cached = _report_cache.get(key)
+    if cached and now - cached[1] < REPORT_CACHE_TTL:
+        return cached[0]
+    if not settings.groq_api_key:
+        return "GROQ_API_KEY not configured. Add it to your .env file."
+
+    prompt, player_info, totals = _prepare_prompt(player_id, lang)
+    if not prompt:
+        return f"No match data found for player ID {player_id}."
 
     try:
         client = Groq(api_key=settings.groq_api_key)
@@ -210,3 +222,52 @@ def generate_scouting_report(player_id: int, lang: str = "en") -> str:
     except Exception as e:
         logger.error(f"Groq API error for player {player_id}: {str(e)[:200]}")
         return f"GROQ_API_ERROR: {str(e)[:200]}"
+
+
+def generate_scouting_report_stream(player_id: int, lang: str = "en"):
+    if not settings.groq_api_key:
+        yield f"data: {json.dumps({'error': 'GROQ_API_KEY not configured'})}\n\n"
+        return
+
+    key = (player_id, lang)
+    now = time.time()
+    cached = _report_cache.get(key)
+    if cached and now - cached[1] < REPORT_CACHE_TTL:
+        yield f"data: {json.dumps({'text': cached[0], 'done': True})}\n\n"
+        return
+
+    prompt, player_info, totals = _prepare_prompt(player_id, lang)
+    if not prompt:
+        yield f"data: {json.dumps({'error': f'No match data found for player ID {player_id}'})}\n\n"
+        return
+
+    try:
+        client = Groq(api_key=settings.groq_api_key)
+        stream = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a professional football scout. Be direct, specific, and data-driven. Never use generic filler phrases.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.7,
+            max_tokens=2000,
+            stream=True,
+        )
+
+        full_text = ""
+        for chunk in stream:
+            delta = chunk.choices[0].delta
+            content = getattr(delta, "content", "") or ""
+            if content:
+                full_text += content
+                yield f"data: {json.dumps({'text': content})}\n\n"
+
+        _report_cache[key] = (full_text, now)
+        yield f"data: {json.dumps({'done': True})}\n\n"
+
+    except Exception as e:
+        logger.error(f"Groq stream error for player {player_id}: {str(e)[:200]}")
+        yield f"data: {json.dumps({'error': str(e)[:200]})}\n\n"

@@ -170,6 +170,7 @@ def _build_player_index():
                             "match_id": int(mid),
                             "competition": _clean_competition_name(comp_name),
                             "season": season_name,
+                            "position": p.get("position_name", p.get("position", "")),
                         }
                     )
 
@@ -198,6 +199,7 @@ def _build_player_index():
                         "match_id": int(mid),
                         "competition": _clean_competition_name(comp_name),
                         "season": season_name,
+                        "position": p.get("position_name", p.get("position", "")),
                     }
                 )
 
