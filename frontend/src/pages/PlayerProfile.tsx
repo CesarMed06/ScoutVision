@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Loader2, Target, Zap, Footprints, Swords, FileText, ChevronDown, ChevronUp, ImageIcon, Users, GitCompare, Map, Crosshair, ArrowUpCircle } from 'lucide-react'
-import { getPlayerMetrics, getAiReport, getPlayerPhoto, getSimilarPlayers, getPlayerAverages, getVizUrl } from '../api'
+import { getPlayerMetrics, getAiReportStream, getPlayerPhoto, getSimilarPlayers, getPlayerAverages, getVizUrl } from '../api'
 import type { PlayerMetricsResponse, PlayerMetricsTotals, SimilarPlayer, AveragesResponse } from '../api'
 import MetricRadar from '../components/MetricRadar'
 
@@ -143,12 +143,22 @@ export default function PlayerProfile() {
   }, [playerId])
 
   function loadReport() {
-    if (reportCache[reportLang] || !playerId) return
+    if (reportLoading || !playerId) return
     setReportLoading(true)
-    getAiReport(Number(playerId), reportLang)
-      .then((r) => { setReportCache(prev => ({...prev, [reportLang]: r.report})); setShowReport(true) })
-      .catch(() => setReportCache(prev => ({...prev, [reportLang]: 'Failed to generate report'})))
-      .finally(() => setReportLoading(false))
+    setShowReport(true)
+    setReportCache(prev => ({ ...prev, [reportLang]: '' }))
+    getAiReportStream(
+      Number(playerId),
+      reportLang,
+      (chunk) => {
+        setReportCache(prev => ({ ...prev, [reportLang]: (prev[reportLang] || '') + chunk }))
+      },
+      () => setReportLoading(false),
+      (err) => {
+        setReportCache(prev => ({ ...prev, [reportLang]: `Error: ${err}` }))
+        setReportLoading(false)
+      }
+    )
   }
 
   if (loading) {
@@ -171,7 +181,6 @@ export default function PlayerProfile() {
   const t = data.totals as PlayerMetricsTotals
   const matchCount = data.match_details.length
 
-  // Fixed radar scale: anchored to global averages (like Compare.tsx)
   const radarData = RADAR_METRICS.map((m) => {
     const val = (t[m.key] as number) || 0
     const avgVal = averages ? (averages[m.key as keyof AveragesResponse] as number) || 0 : 0
@@ -288,7 +297,7 @@ export default function PlayerProfile() {
             )}              {reportLang === 'en' ? 'AI Scouting Report' : 'Informe de Scouting'}
           </button>
 
-          {reportCache[reportLang] && (
+          {(reportCache[reportLang] || reportLoading) && (
             <div className="mt-4 bg-gray-900 border border-gray-800 rounded-xl">
               <button
                 onClick={() => setShowReport(!showReport)}
@@ -297,12 +306,14 @@ export default function PlayerProfile() {
                 <span className="flex items-center gap-2">
                   <FileText className="w-4 h-4 text-emerald-400" />
                   {reportLang === 'en' ? 'Scout Report' : 'Informe'}
+                  {reportLoading && <Loader2 className="w-3 h-3 animate-spin text-emerald-400" />}
                 </span>
                 {showReport ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
               {showReport && (
                 <div className="px-4 pb-4 text-sm text-gray-300 leading-relaxed whitespace-pre-line max-h-96 overflow-y-auto">
                   {reportCache[reportLang]}
+                  {reportLoading && <span className="inline-block w-2 h-4 bg-emerald-400 ml-0.5 animate-pulse align-middle" />}
                 </div>
               )}
             </div>

@@ -107,15 +107,15 @@ def init_vector_db(max_players: int = 2000):
 
     df = search_players(limit=10000)
     seen = set()
-    pids = []
+    pids_with_pos = {}  # pid -> position
     for _, row in df.iterrows():
         pid = row["player_id"]
         if pid not in seen:
             seen.add(pid)
-            pids.append(pid)
+            pids_with_pos[pid] = row.get("position", "")
 
     count = 0
-    for pid in pids[:max_players]:
+    for pid in list(pids_with_pos.keys())[:max_players]:
         try:
             metrics = get_player_metrics_across_matches(int(pid))
             if metrics:
@@ -130,11 +130,12 @@ def init_vector_db(max_players: int = 2000):
                         "player_name": metrics[0]["player"],
                         "team": metrics[0].get("team", ""),
                         "competition": metrics[0].get("competition", ""),
+                        "position": pids_with_pos.get(pid, ""),
                     },
                 }
                 count += 1
                 if count % 100 == 0:
-                    logger.info(f"Vector DB: {count}/{len(pids[:max_players])} players indexed...")
+                    logger.info(f"Vector DB: {count}/{min(len(pids_with_pos), max_players)} players indexed...")
         except Exception:
             continue
 
@@ -144,7 +145,7 @@ def init_vector_db(max_players: int = 2000):
     _save_vector_db()
 
 
-def get_similar_players(player_id: int, top_n: int = 10) -> list[dict]:
+def get_similar_players(player_id: int, top_n: int = 10, position_filter: str | None = None) -> list[dict]:
     # Don't block the request thread — return empty if DB isn't ready yet (it builds in background)
     if not _VECTOR_DB_INITIALIZED:
         logger.info("Vector DB not yet initialized, returning empty similarity results")
@@ -159,6 +160,10 @@ def get_similar_players(player_id: int, top_n: int = 10) -> list[dict]:
     for pid, data in VECTOR_DB.items():
         if pid == player_id:
             continue
+        if position_filter:
+            player_pos = data.get("player_info", {}).get("position", "")
+            if not player_pos or position_filter.lower() not in player_pos.lower():
+                continue
         vec = np.array(data["vector"]).reshape(1, -1)
         if np.linalg.norm(vec) == 0:
             continue
