@@ -1,4 +1,5 @@
 <div align="center">
+  <img src="https://github.com/CesarMed06/ScoutVision/actions/workflows/ci.yml/badge.svg" alt="CI" />
   <img src="https://img.shields.io/badge/status-active-success.svg" alt="Status" />
   <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License" />
   <img src="https://img.shields.io/badge/python-3.12+-blue?logo=python" alt="Python" />
