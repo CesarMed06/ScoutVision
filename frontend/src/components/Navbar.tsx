@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Shield, Search, Home, GitCompare, SlidersHorizontal } from 'lucide-react'
+import { Search, Home, GitCompare, SlidersHorizontal } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { getHealth } from '../api'
 
@@ -23,9 +23,9 @@ export default function Navbar() {
   return (
     <nav className="border-b border-gray-800 bg-gray-950/90 backdrop-blur-sm sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2 text-white hover:text-emerald-400 transition-colors">
-          <Shield className="w-6 h-6 text-emerald-400" />
-          <span className="font-bold text-lg tracking-tight">ScoutVision</span>
+        <Link to="/" className="flex items-center gap-2.5 text-white hover:opacity-80 transition-opacity shrink-0">
+          <img src="/logo-icon.svg" alt="ScoutVision" className="w-7 h-7" />
+          <span className="font-bold text-lg tracking-tight">Scout<span className="text-emerald-400">Vision</span></span>
           <span
             className={`ml-1 text-[10px] px-1.5 py-0.5 rounded-full border ${
               dbStatus === 'loading'
