@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Shield background -->
+  <path d="M32 4L56 14V30C56 44 44 56 32 60C20 56 8 44 8 30V14L32 4Z" fill="#10B981" />
+  <!-- Inner radar circle -->
+  <circle cx="32" cy="31" r="14" stroke="#064E3B" stroke-width="2" fill="none" />
+  <circle cx="32" cy="31" r="8" stroke="#064E3B" stroke-width="1.5" fill="none" opacity="0.6" />
+  <circle cx="32" cy="31" r="3" stroke="#064E3B" stroke-width="1.5" fill="#064E3B" opacity="0.4" />
+  <!-- Crosshair lines -->
+  <line x1="32" y1="13" x2="32" y2="49" stroke="#064E3B" stroke-width="1.5" opacity="0.5" />
+  <line x1="14" y1="31" x2="50" y2="31" stroke="#064E3B" stroke-width="1.5" opacity="0.5" />
+  <!-- Eye/dot at center -->
+  <circle cx="32" cy="26" r="3" fill="#ECFDF5" />
+  <!-- Small triangle accent at top -->
+  <polygon points="32,20 28,26 36,26" fill="#ECFDF5" opacity="0.9" />
+</svg>

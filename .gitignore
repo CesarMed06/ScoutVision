@@ -29,3 +29,4 @@ htmlcov/
 backend/data/vector_db.json
 backend/data/player_images_cache.json
 backend/data/*.tmp
+Gemini_Generated_*

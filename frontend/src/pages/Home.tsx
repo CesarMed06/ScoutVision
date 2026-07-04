@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Shield, Search, BarChart3, FileText, Github, ArrowRight } from 'lucide-react'
+import { Search, BarChart3, FileText, Github, ArrowRight } from 'lucide-react'
 
 const features = [
   { icon: Search, title: 'Player Discovery', desc: 'Search through thousands of players from top European leagues. Find prospects by name, team, or competition.' },
@@ -11,10 +11,10 @@ export default function Home() {
   return (
     <div className="min-h-[calc(100vh-3.5rem)] flex flex-col">
       <section className="flex-1 flex flex-col items-center justify-center px-6 py-20 text-center">
-        <div className="flex items-center gap-3 mb-6">
-          <Shield className="w-12 h-12 text-emerald-400" />
+        <div className="flex flex-col items-center gap-3 mb-6">
+          <img src="/logo-icon.svg" alt="" className="w-20 h-20" aria-hidden="true" />
           <h1 className="text-5xl sm:text-6xl font-bold tracking-tight text-white">
-            ScoutVision
+            Scout<span className="text-emerald-400">Vision</span>
           </h1>
         </div>
         <p className="text-gray-400 text-lg sm:text-xl mb-10 max-w-xl">
