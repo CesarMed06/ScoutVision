@@ -273,15 +273,15 @@ export default function PlayerProfile() {
           <div className="flex gap-2 mb-4">
             <button
               onClick={() => setReportLang('en')}
-              className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${reportLang === 'en' ? 'bg-emerald-500 text-black' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
+              className={`inline-flex items-center flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${reportLang === 'en' ? 'bg-emerald-500 text-black' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
             >
-              🇬🇧 EN
+              <svg className="w-5 h-4 rounded-sm mr-1.5" viewBox="0 0 60 30"><rect fill="#012169" width="60" height="30"/><path d="M0 0l60 30M60 0L0 30" stroke="#fff" strokeWidth="10"/><path d="M30 0v30M0 15h60" stroke="#fff" strokeWidth="12"/><path d="M30 0v30M0 15h60" stroke="#C8102E" strokeWidth="8"/></svg>English
             </button>
             <button
               onClick={() => setReportLang('es')}
-              className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${reportLang === 'es' ? 'bg-emerald-500 text-black' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
+              className={`inline-flex items-center flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${reportLang === 'es' ? 'bg-emerald-500 text-black' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
             >
-              🇪🇸 ES
+              <svg className="w-5 h-4 rounded-sm mr-1.5" viewBox="0 0 60 30"><rect fill="#AA151B" width="60" height="12"/><rect fill="#F1BF00" y="12" width="60" height="6"/><rect fill="#AA151B" y="18" width="60" height="12"/></svg>Español
             </button>
           </div>
 
