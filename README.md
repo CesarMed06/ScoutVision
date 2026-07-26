@@ -42,21 +42,75 @@ Instead of building a generic stats dashboard, the project focuses on a scouting
 
 ## Product Demo
 
-Add screenshots or a short GIF here once the final UI assets are ready.
-
-```md
+### 1. Home
 <p align="center">
-  <img src="docs/demo.gif" alt="ScoutVision Demo" width="900" />
+  <img src="docs/screenshots/1.png" alt="ScoutVision Home" width="900" />
 </p>
-```
 
-Recommended captures:
-- Home page
-- Players list
-- Player profile
-- Compare page
-- Scout filters
-- AI report panel
+Landing page with the platform's core value proposition: player discovery, advanced metrics, and AI scouting reports.
+
+### 2. Players
+<p align="center">
+  <img src="docs/screenshots/2.png" alt="Players list" width="900" />
+</p>
+
+Players section right after entering, showing the featured players list before any search or selection.
+
+### 3. Player profile
+<p align="center">
+  <img src="docs/screenshots/3.png" alt="Player profile" width="900" />
+</p>
+
+Individual player profile with aggregated stats across attacking, passing, dribbling, defensive, and physical categories.
+
+### 4. AI scouting report
+<p align="center">
+  <img src="docs/screenshots/4.png" alt="AI Scouting Report" width="900" />
+</p>
+
+Lower section of the player profile showing the AI-generated scouting report in English, with strengths, weaknesses, and statistical assessment.
+
+### 5. Match log
+<p align="center">
+  <img src="docs/screenshots/5.png" alt="Match log" width="900" />
+</p>
+
+Match log view listing all matches played by the selected player with per-match stats.
+
+### 6. Heatmap
+<p align="center">
+  <img src="docs/screenshots/6.png" alt="Player heatmap" width="900" />
+</p>
+
+Heatmap visualization for a specific match, showing the player's positioning and activity zones on the pitch.
+
+### 7. Pass map
+<p align="center">
+  <img src="docs/screenshots/7.png" alt="Pass map" width="900" />
+</p>
+
+Pass map visualization for the same match, displaying completed and incomplete passes across the pitch.
+
+### 8. Scout filters
+<p align="center">
+  <img src="docs/screenshots/8.png" alt="Scout filters" width="900" />
+</p>
+
+Scout mode filtering players by a minimum threshold of Key Passes/90 set to 0.40, returning matching players from the pool.
+
+### 9. Player comparison
+<p align="center">
+  <img src="docs/screenshots/9.png" alt="Compare Lewandowski vs Messi" width="900" />
+</p>
+
+Compare page with Robert Lewandowski and Lionel Messi selected as Player A and Player B.
+
+### 10. Stats comparison
+<p align="center">
+  <img src="docs/screenshots/10.png" alt="Stats comparison Messi vs Lewandowski" width="900" />
+</p>
+
+Second part of the compare view, showing the side-by-side stats comparison between Messi and Lewandowski.
 
 ## Architecture
 
