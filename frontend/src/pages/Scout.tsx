@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Loader2, SlidersHorizontal, Search, ArrowUpDown, Target, ImageIcon, ChevronLeft, ChevronRight } from 'lucide-react'
-import { getPlayerPhoto } from '../api'
+import { apiUrl, getPlayerPhoto } from '../api'
 
 interface ScoutFilters {
   min_goals_per_90: number
@@ -75,7 +75,7 @@ async function scoutSearch(query: string): Promise<ScoutResult[]> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 30000)
   try {
-    const res = await fetch(`/api/v1/players/search/advanced?${query}`, { signal: controller.signal })
+    const res = await fetch(apiUrl(`/players/search/advanced?${query}`), { signal: controller.signal })
     if (!res.ok) throw new Error(`Search failed: ${res.status}`)
     return res.json()
   } finally {

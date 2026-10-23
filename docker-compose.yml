@@ -1,18 +1,37 @@
 services:
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
+    # .env is optional: the API runs without a Groq key (AI reports are disabled).
     env_file:
-      - ./backend/.env
+      - path: ./backend/.env
+        required: false
+    environment:
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
     volumes:
       - ./backend/data:/app/data
     restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     ports:
-      - "5173:5173"
+      - "5173:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
