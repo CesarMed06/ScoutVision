@@ -1,11 +1,22 @@
-const BASE = '/api/v1'
+// Relative URLs work in dev (Vite proxy) and in Docker (nginx proxy).
+// A deployed frontend can point at a separate backend through VITE_API_BASE_URL.
+function trimTrailingSlash(url: string): string {
+  return url.replace(/\/+$/, '')
+}
+
+export const BASE = trimTrailingSlash(import.meta.env.VITE_API_BASE_URL || '/api/v1')
+export const HEALTH_URL = trimTrailingSlash(import.meta.env.VITE_HEALTH_URL || '/health')
 const TIMEOUT = 15000
+
+export function apiUrl(path: string): string {
+  return `${BASE}${path}`
+}
 
 async function get<T>(path: string, timeoutMs = TIMEOUT): Promise<T> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
-    const res = await fetch(`${BASE}${path}`, { signal: controller.signal })
+    const res = await fetch(apiUrl(path), { signal: controller.signal })
     if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`)
     return res.json()
   } finally {
@@ -136,7 +147,7 @@ export async function getAiReportStream(
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 60000)
   try {
-    const res = await fetch(`${BASE}/players/${playerId}/report-stream?lang=${lang}`, { signal: controller.signal })
+    const res = await fetch(apiUrl(`/players/${playerId}/report-stream?lang=${lang}`), { signal: controller.signal })
     if (!res.ok) {
       onError(`HTTP ${res.status}`)
       return
@@ -199,7 +210,7 @@ export async function getHealth(): Promise<HealthResponse> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 5000)
   try {
-    const res = await fetch('/health', { signal: controller.signal })
+    const res = await fetch(HEALTH_URL, { signal: controller.signal })
     if (!res.ok) throw new Error(`Health check failed: ${res.status}`)
     return res.json()
   } finally {
