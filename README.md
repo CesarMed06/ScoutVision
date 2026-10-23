@@ -231,15 +231,39 @@ npm run dev
 
 Then open [http://localhost:5173](http://localhost:5173).
 
+### Docker
+
+```bash
+docker compose up --build
+```
+
+Requires Docker Compose v2.24+ (optional `env_file` entry).
+
+- Frontend: [http://localhost:5173](http://localhost:5173)
+- Backend: [http://localhost:8000](http://localhost:8000) (docs at `/docs`)
+
+The backend image does not bundle the StatsBomb event cache; `backend/data` is mounted into the container at runtime. `backend/.env` is optional — without a Groq key the app works and only AI reports are unavailable.
+
 ## Environment Variables
 
 Backend `.env`:
 
 ```env
 GROQ_API_KEY=your_key_here
+# Optional: comma-separated allowed origins (default: http://localhost:5173)
+# CORS_ORIGINS=https://your-frontend.vercel.app
+# Optional: path to the StatsBomb JSON cache (default: ./data)
+# STATSBOMB_DATA_DIR=./data
 ```
 
-Add any extra variables here if the project grows later.
+Frontend `.env.local` (only needed when the API is on a different origin, e.g. Vercel + Render):
+
+```env
+VITE_API_BASE_URL=https://your-backend.onrender.com/api/v1
+VITE_HEALTH_URL=https://your-backend.onrender.com/health
+```
+
+When both services share an origin, leave these unset: the app uses `/api/v1` and `/health`, which work through the Vite dev proxy and the nginx proxy in Docker. Remember to add the deployed frontend origin to `CORS_ORIGINS` on the backend.
 
 ## Quality and Tooling
 
