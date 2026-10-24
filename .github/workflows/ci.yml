@@ -5,6 +5,9 @@ on: [push, pull_request]
 jobs:
   backend:
     runs-on: ubuntu-latest
+    # Run from the small committed sample instead of downloading the full StatsBomb cache.
+    env:
+      STATSBOMB_DATA_DIR: sample_data
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

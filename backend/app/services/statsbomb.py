@@ -1,11 +1,15 @@
 import json
+import os
 from functools import lru_cache
 from pathlib import Path
 
 import pandas as pd
 from statsbombpy import sb
 
-DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
+# Cache directory. Relative paths are resolved from backend/, so setting
+# STATSBOMB_DATA_DIR=sample_data runs everything offline from the committed sample.
+BACKEND_ROOT = Path(__file__).resolve().parent.parent.parent
+DATA_DIR = (BACKEND_ROOT / os.getenv("STATSBOMB_DATA_DIR", "data")).resolve()
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
