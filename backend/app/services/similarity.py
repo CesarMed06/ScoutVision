@@ -1,15 +1,14 @@
 import json
 import logging
-from pathlib import Path
 
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
 from app.services.metrics import get_player_metrics_across_matches
+from app.services.statsbomb import DATA_DIR
 
 logger = logging.getLogger(__name__)
 
-DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 VECTOR_DB_PATH = DATA_DIR / "vector_db.json"
 
 METRIC_KEYS = [

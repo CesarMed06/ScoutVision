@@ -4,15 +4,12 @@ import re
 import threading
 import unicodedata
 import urllib.parse
-from pathlib import Path
 from urllib.request import urlopen
 
 from app.core.config import settings
+from app.services.statsbomb import DATA_DIR
 
 logger = logging.getLogger(__name__)
-
-DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
-DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 CACHE_FILE = DATA_DIR / "player_images_cache.json"
 CACHE_LOCK = threading.Lock()

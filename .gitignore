@@ -26,6 +26,8 @@ data/processed/
 .coverage
 htmlcov/
 .pytest_cache/
-backend/data/vector_db.json
-backend/data/player_images_cache.json
-backend/data/*.tmp
+
+# StatsBomb cache: rebuilt at runtime from StatsBomb open data.
+# Only the small sample in backend/sample_data/ is committed.
+backend/data/*
+
