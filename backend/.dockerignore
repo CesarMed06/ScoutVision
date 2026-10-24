@@ -15,4 +15,4 @@ data/*.json
 data/**/*.json
 data/*.tmp
 data/viz_cache/
-!data/sample/*.json
+!sample_data/*.json

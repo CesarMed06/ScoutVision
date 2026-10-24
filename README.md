@@ -180,7 +180,8 @@ ScoutVision/
 │   │   ├── core/
 │   │   ├── services/
 │   │   └── visualizations/
-│   ├── data/
+│   ├── data/          # runtime cache, not versioned
+│   ├── sample_data/   # small committed sample (offline runs and CI)
 │   └── tests/
 ├── docs/
 ├── frontend/
@@ -244,6 +245,19 @@ Requires Docker Compose v2.24+ (optional `env_file` entry).
 
 The backend image does not bundle the StatsBomb event cache; `backend/data` is mounted into the container at runtime. `backend/.env` is optional — without a Groq key the app works and only AI reports are unavailable.
 
+## Data
+
+`backend/data` is a runtime cache: each StatsBomb file is downloaded on first use and written there. A full build is about 1.8 GB, so it is never committed.
+
+`backend/sample_data` is the small slice that *is* committed (~3 MB: league and player index, competitions, fixtures, and per-player metrics for 50 players). Running against it makes everything work with no network and no downloads:
+
+```bash
+cd backend
+STATSBOMB_DATA_DIR=sample_data uvicorn app.main:app --reload
+```
+
+Leave the variable unset for normal use: the API then reads and fills `backend/data` from StatsBomb Open Data on demand. CI runs the tests against the sample, which also keeps the job fast.
+
 ## Environment Variables
 
 Backend `.env`:
@@ -252,8 +266,9 @@ Backend `.env`:
 GROQ_API_KEY=your_key_here
 # Optional: comma-separated allowed origins (default: http://localhost:5173)
 # CORS_ORIGINS=https://your-frontend.vercel.app
-# Optional: path to the StatsBomb JSON cache (default: ./data)
-# STATSBOMB_DATA_DIR=./data
+# Optional: StatsBomb cache directory, relative to backend/ (default: data)
+# Use sample_data to run offline from the committed sample
+# STATSBOMB_DATA_DIR=sample_data
 ```
 
 Frontend `.env.local` (only needed when the API is on a different origin, e.g. Vercel + Render):

@@ -1,11 +1,10 @@
 from functools import lru_cache
-from pathlib import Path
 
 import pandas as pd
 
-from app.services.statsbomb import get_match_events, search_players
+from app.services.statsbomb import DATA_DIR, get_match_events, search_players
 
-METRICS_DIR = Path(__file__).resolve().parent.parent.parent / "data"
+METRICS_DIR = DATA_DIR
 
 FINAL_THIRD_X = 80
 MIN_PROGRESSIVE_DIST = 10
