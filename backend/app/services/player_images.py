@@ -139,6 +139,8 @@ def _ui_avatar_url(player_name: str) -> str:
 
 
 def get_player_image(player_name: str) -> str | None:
+    if settings.demo_mode:
+        return None
     cache = _load_cache()
     if player_name in cache and cache[player_name].get("thumb"):
         return cache[player_name]["thumb"]

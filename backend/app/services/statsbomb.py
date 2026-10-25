@@ -6,10 +6,11 @@ from pathlib import Path
 import pandas as pd
 from statsbombpy import sb
 
-# Cache directory. Relative paths are resolved from backend/, so setting
-# STATSBOMB_DATA_DIR=sample_data runs everything offline from the committed sample.
+from app.core.config import settings
+
 BACKEND_ROOT = Path(__file__).resolve().parent.parent.parent
 DATA_DIR = (BACKEND_ROOT / os.getenv("STATSBOMB_DATA_DIR", "data")).resolve()
+SAMPLE_DATA_DIR = BACKEND_ROOT / "sample_data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -19,6 +20,8 @@ def _cache_path(name: str) -> Path:
 
 def _load_cached(name: str):
     path = _cache_path(name)
+    if not path.exists() and settings.demo_mode:
+        path = SAMPLE_DATA_DIR / f"{name}.json"
     if path.exists():
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -35,6 +38,8 @@ def get_competitions() -> pd.DataFrame:
     cached = _load_cached("competitions")
     if cached is not None:
         return pd.DataFrame(cached)
+    if settings.demo_mode:
+        return pd.DataFrame()
     comps = sb.competitions()
     cols = [
         "competition_id",
@@ -55,6 +60,8 @@ def get_matches(competition_id: int, season_id: int) -> pd.DataFrame:
     cached = _load_cached(cache_name)
     if cached is not None:
         return pd.DataFrame(cached)
+    if settings.demo_mode:
+        return pd.DataFrame()
     matches = sb.matches(competition_id=competition_id, season_id=season_id)
     cols = [
         "match_id",
@@ -77,6 +84,8 @@ def get_match_events(match_id: int) -> pd.DataFrame:
     cached = _load_cached(cache_name)
     if cached is not None:
         return pd.DataFrame(cached)
+    if settings.demo_mode:
+        return pd.DataFrame()
     events = sb.events(match_id=match_id)
     _save_cache(cache_name, json.loads(events.to_json(orient="records")))
     return events
@@ -87,6 +96,8 @@ def get_match_lineups(match_id: int) -> list:
     cached = _load_cached(cache_name)
     if cached is not None:
         return cached
+    if settings.demo_mode:
+        return []
     raw = sb.lineups(match_id=match_id)
     result = []
     for team_name, lineup_df in raw.items():

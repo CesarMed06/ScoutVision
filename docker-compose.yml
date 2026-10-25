@@ -4,12 +4,14 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:8000"
     # .env is optional: the API runs without a Groq key (AI reports are disabled).
     env_file:
       - path: ./backend/.env
         required: false
     environment:
+      DEMO_MODE: ${DEMO_MODE:-true}
+      STATSBOMB_DATA_DIR: ${STATSBOMB_DATA_DIR:-sample_data}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
     volumes:
       - ./backend/data:/app/data
@@ -30,7 +32,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "5173:80"
+      - "${FRONTEND_PORT:-5173}:80"
     depends_on:
       backend:
         condition: service_healthy

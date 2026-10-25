@@ -26,7 +26,7 @@ def _prewarm_cache():
 
     logger.info("Building vector database for KNN similarity...")
     try:
-        sim.init_vector_db(max_players=2000)
+        sim.init_vector_db(max_players=50 if settings.demo_mode else 2000)
         logger.info(f"Vector DB ready: {len(sim.VECTOR_DB)} players indexed")
     except Exception as e:
         logger.error(f"Vector DB init failed: {e}")
@@ -75,6 +75,8 @@ def health_check():
     return {
         "status": "ok",
         "version": APP_VERSION,
+        "demo_mode": settings.demo_mode,
+        "dataset": "sample_data" if settings.demo_mode else "data",
         "vector_db_initialized": sim._VECTOR_DB_INITIALIZED,
         "vector_db_size": len(sim.VECTOR_DB) if sim._VECTOR_DB_INITIALIZED else 0,
     }
