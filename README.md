@@ -238,7 +238,7 @@ Then open [http://localhost:5173](http://localhost:5173).
 docker compose up --build
 ```
 
-Requires Docker Compose v2.24+ (optional `env_file` entry).
+Docker starts in offline demo mode using `backend/sample_data`. Set `DEMO_MODE=false` in `.env` to use the full StatsBomb cache in `backend/data`. Requires Docker Compose v2.24+ (optional `env_file` entry).
 
 - Frontend: [http://localhost:5173](http://localhost:5173)
 - Backend: [http://localhost:8000](http://localhost:8000) (docs at `/docs`)
@@ -249,14 +249,14 @@ The backend image does not bundle the StatsBomb event cache; `backend/data` is m
 
 `backend/data` is a runtime cache: each StatsBomb file is downloaded on first use and written there. A full build is about 1.8 GB, so it is never committed.
 
-`backend/sample_data` is the small slice that *is* committed (~3 MB: league and player index, competitions, fixtures, and per-player metrics for 50 players). Running against it makes everything work with no network and no downloads:
+`backend/sample_data` is the small slice that *is* committed (~11 MB: league and player index, competitions, fixtures, metrics for 50 players, and one match with events). Running against it makes everything work with no network and no downloads:
 
 ```bash
 cd backend
 STATSBOMB_DATA_DIR=sample_data uvicorn app.main:app --reload
 ```
 
-Leave the variable unset for normal use: the API then reads and fills `backend/data` from StatsBomb Open Data on demand. CI runs the tests against the sample, which also keeps the job fast.
+Set `DEMO_MODE=true` to prevent StatsBomb downloads and use only files in the sample; missing data returns as unavailable. Leave it false for normal use: the API then reads and fills `backend/data` from StatsBomb Open Data on demand. CI runs the tests against the sample.
 
 ## Environment Variables
 
@@ -266,8 +266,8 @@ Backend `.env`:
 GROQ_API_KEY=your_key_here
 # Optional: comma-separated allowed origins (default: http://localhost:5173)
 # CORS_ORIGINS=https://your-frontend.vercel.app
-# Optional: StatsBomb cache directory, relative to backend/ (default: data)
-# Use sample_data to run offline from the committed sample
+# Optional: use the included offline dataset without downloads
+# DEMO_MODE=true
 # STATSBOMB_DATA_DIR=sample_data
 ```
 

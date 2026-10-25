@@ -27,6 +27,8 @@ async function get<T>(path: string, timeoutMs = TIMEOUT): Promise<T> {
 export interface HealthResponse {
   status: string
   version: string
+  demo_mode: boolean
+  dataset: string
   vector_db_initialized: boolean
   vector_db_size: number
 }
