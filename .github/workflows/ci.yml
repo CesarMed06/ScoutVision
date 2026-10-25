@@ -7,6 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     # Run from the small committed sample instead of downloading the full StatsBomb cache.
     env:
+      DEMO_MODE: true
       STATSBOMB_DATA_DIR: sample_data
     steps:
       - uses: actions/checkout@v4

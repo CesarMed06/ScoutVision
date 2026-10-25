@@ -5,14 +5,16 @@ import { getHealth } from '../api'
 
 export default function Navbar() {
   const loc = useLocation()
-  const [dbStatus, setDbStatus] = useState<'loading' | 'ready' | number>('loading')
+  const [dbStatus, setDbStatus] = useState<'loading' | number>('loading')
+  const [demoMode, setDemoMode] = useState(false)
 
   useEffect(() => {
     let active = true
     function poll() {
       getHealth().then(h => {
         if (!active) return
-        if (h.vector_db_initialized && h.vector_db_size > 0) setDbStatus(h.vector_db_size)
+        setDemoMode(h.demo_mode)
+        if (h.vector_db_initialized) setDbStatus(h.vector_db_size)
         else setTimeout(poll, 2000)
       }).catch(() => { if (active) setTimeout(poll, 5000) })
     }
@@ -26,6 +28,7 @@ export default function Navbar() {
         <Link to="/" className="flex items-center gap-2.5 text-white hover:opacity-80 transition-opacity shrink-0">
           <img src="/logo-icon.svg" alt="ScoutVision" className="w-7 h-7" />
           <span className="font-bold text-lg tracking-tight">Scout<span className="text-emerald-400">Vision</span></span>
+          {demoMode && <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-300">Demo</span>}
           <span
             className={`ml-1 text-[10px] px-1.5 py-0.5 rounded-full border ${
               dbStatus === 'loading'

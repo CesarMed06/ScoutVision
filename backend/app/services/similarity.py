@@ -4,6 +4,7 @@ import logging
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
+from app.core.config import settings
 from app.services.metrics import get_player_metrics_across_matches
 from app.services.statsbomb import DATA_DIR
 
@@ -99,7 +100,7 @@ def init_vector_db(max_players: int = 2000):
         return
 
     # Try loading from disk first (survives restarts)
-    if _load_vector_db():
+    if not settings.demo_mode and _load_vector_db():
         return
 
     from app.services.statsbomb import search_players
@@ -141,7 +142,8 @@ def init_vector_db(max_players: int = 2000):
     logger.info(f"Vector DB build complete: {count} players indexed")
     _VECTOR_DB_INITIALIZED = True
     # Persist to disk so restarts are instant
-    _save_vector_db()
+    if not settings.demo_mode:
+        _save_vector_db()
 
 
 def get_similar_players(player_id: int, top_n: int = 10, position_filter: str | None = None) -> list[dict]:

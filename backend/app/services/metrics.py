@@ -2,7 +2,8 @@ from functools import lru_cache
 
 import pandas as pd
 
-from app.services.statsbomb import DATA_DIR, get_match_events, search_players
+from app.core.config import settings
+from app.services.statsbomb import DATA_DIR, SAMPLE_DATA_DIR, get_match_events, search_players
 
 METRICS_DIR = DATA_DIR
 
@@ -231,13 +232,20 @@ def get_player_metrics_across_matches(player_id: int) -> list[dict]:
     """Compute per-match metrics for a player, cached in memory (512 slots) and persisted to disk."""
     # Check disk cache first (survives restarts)
     cache_path = METRICS_DIR / f"metrics_{player_id}.json"
+    if settings.demo_mode and not cache_path.exists():
+        cache_path = SAMPLE_DATA_DIR / cache_path.name
     if cache_path.exists():
         try:
             import json
             with open(cache_path, "r", encoding="utf-8") as f:
-                return json.load(f)
+                data = json.load(f)
+            if not settings.demo_mode or data:
+                return data
         except (json.JSONDecodeError, IOError):
             cache_path.unlink(missing_ok=True)
+
+    if settings.demo_mode:
+        return []
 
     from app.services.statsbomb import search_players
 

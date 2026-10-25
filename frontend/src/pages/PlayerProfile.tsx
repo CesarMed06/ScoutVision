@@ -57,6 +57,7 @@ function Section({ title, icon, children }: { title: string; icon: React.ReactNo
 function VizModal({ playerId, matchId, matchLabel, onClose }: { playerId: number; matchId: number; matchLabel: string; onClose: () => void }) {
   const [activeTab, setActiveTab] = useState<'heatmap' | 'passes' | 'shots'>('heatmap')
   const [imgError, setImgError] = useState(false)
+  const [imgLoading, setImgLoading] = useState(true)
 
   const tabs = [
     { key: 'heatmap' as const, label: 'Heatmap', icon: Map },
@@ -75,7 +76,7 @@ function VizModal({ playerId, matchId, matchLabel, onClose }: { playerId: number
           {tabs.map(tab => (
             <button
               key={tab.key}
-              onClick={() => { setActiveTab(tab.key); setImgError(false) }}
+              onClick={() => { setActiveTab(tab.key); setImgError(false); setImgLoading(true) }}
               className={`px-4 py-2 rounded-t-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
                 activeTab === tab.key
                   ? 'bg-gray-800 text-emerald-400 border-b-2 border-emerald-400'
@@ -89,14 +90,18 @@ function VizModal({ playerId, matchId, matchLabel, onClose }: { playerId: number
         </div>
         <div className="p-4">
           {imgError ? (
-            <p className="text-gray-500 text-center py-12">Not enough data for this visualization</p>
+            <p className="text-gray-500 text-center py-12">Not available for this match</p>
           ) : (
-            <img
-              src={getVizUrl(activeTab, playerId, matchId)}
-              alt={`${activeTab} for match ${matchId}`}
-              className="w-full rounded-lg"
-              onError={() => setImgError(true)}
-            />
+            <>
+              {imgLoading && <p className="text-gray-500 text-center py-12">Loading…</p>}
+              <img
+                src={getVizUrl(activeTab, playerId, matchId)}
+                alt={`${activeTab} for match ${matchId}`}
+                className={`w-full rounded-lg ${imgLoading ? 'hidden' : ''}`}
+                onLoad={() => setImgLoading(false)}
+                onError={() => { setImgLoading(false); setImgError(true) }}
+              />
+            </>
           )}
         </div>
       </div>

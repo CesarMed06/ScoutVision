@@ -10,6 +10,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
 COPY tests ./tests
+COPY sample_data ./sample_data
 
 # Data is provided at runtime (bind mount in docker-compose, volume in production).
 # Keeping it out of the image avoids shipping the multi-GB StatsBomb event cache.
