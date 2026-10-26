@@ -11,32 +11,86 @@ FINAL_THIRD_X = 80
 MIN_PROGRESSIVE_DIST = 10
 
 
+def _event_minute(event: pd.Series) -> float | None:
+    minute = event.get("minute")
+    if pd.isna(minute):
+        return None
+    second = event.get("second", 0)
+    second = 0 if pd.isna(second) else float(second)
+    return float(minute) + second / 60
+
+
+def _event_sort_key(event: pd.Series) -> tuple[float, float]:
+    minute = event.get("minute")
+    second = event.get("second", 0)
+    return (
+        float(minute) if pd.notna(minute) else 0.0,
+        float(second) if pd.notna(second) else 0.0,
+    )
+
+
+def _is_in_starting_xi(events: pd.DataFrame, player: str) -> bool:
+    starting_xi = events[events["type"] == "Starting XI"]
+    for tactics in _col(starting_xi, "tactics"):
+        if not isinstance(tactics, dict):
+            continue
+        for entry in tactics.get("lineup", []):
+            if entry.get("player", {}).get("name") == player:
+                return True
+    return False
+
+
 def _infer_minutes(events: pd.DataFrame, player: str) -> float:
     subs = events[events["type"] == "Substitution"]
-    subbed_on = subs[subs["substitution_replacement"] == player]
-    subbed_off = subs[subs["player"] == player]
+    subbed_on = subs[_col(subs, "substitution_replacement").eq(player)]
+    subbed_off = subs[_col(subs, "player").eq(player)]
     player_events = events[events["player"] == player]
-    if len(player_events) == 0:
+    if player_events.empty:
         return 0
-    first_half_end = events[(events["type"] == "Half End") & (events["period"] == 1)]
-    full_time = 90
-    if len(first_half_end) > 0:
-        full_time = int(first_half_end.iloc[0]["minute"]) * 2
+
+    half_ends = events[events["type"] == "Half End"]
+    if not half_ends.empty and "period" in half_ends.columns:
+        final_period = half_ends["period"].max()
+        end_events = half_ends[half_ends["period"] == final_period]
     else:
-        full_time = int(player_events["minute"].max()) + 5
-    full_time = max(full_time, 90)
-    has_starting_xi = len(player_events[player_events["minute"] <= 1]) > 0
-    if len(subbed_on) > 0:
-        start_min = int(subbed_on.iloc[0]["minute"])
-    elif has_starting_xi:
-        start_min = 0
+        end_events = half_ends
+    end_times = [
+        value for value in (_event_minute(row) for _, row in end_events.iterrows())
+        if value is not None
+    ]
+    if not end_times:
+        end_times = [
+            value for value in (_event_minute(row) for _, row in events.iterrows())
+            if value is not None
+        ]
+    full_time = max(90.0, max(end_times, default=90.0))
+
+    is_starter = _is_in_starting_xi(events, player)
+    if not subbed_on.empty:
+        sub_event = min(
+            (row for _, row in subbed_on.iterrows()), key=_event_sort_key
+        )
+        start_min = _event_minute(sub_event)
+    elif is_starter or not subbed_off.empty or player_events["minute"].le(1).any():
+        start_min = 0.0
     else:
-        start_min = int(player_events["minute"].min())
-    if len(subbed_off) > 0:
-        end_min = int(subbed_off.iloc[0]["minute"])
+        event_minutes = [
+            value
+            for value in (_event_minute(row) for _, row in player_events.iterrows())
+            if value is not None
+        ]
+        start_min = min(event_minutes, default=0.0)
+
+    if not subbed_off.empty:
+        sub_event = min(
+            (row for _, row in subbed_off.iterrows()), key=_event_sort_key
+        )
+        end_min = _event_minute(sub_event)
     else:
         end_min = full_time
-    return max(0, end_min - start_min)
+    if start_min is None or end_min is None:
+        return 0
+    return max(0, int(end_min - start_min + 0.5))
 
 
 def _col(df, name):
@@ -73,7 +127,7 @@ def compute_player_metrics(events: pd.DataFrame, player: str) -> dict:
     num_shots = len(shots)
     shot_outcome = _col(shots, "shot_outcome")
     goals = len(shots[shot_outcome == "Goal"])
-    shots_ot = len(shots[shot_outcome.isin(["Goal", "Saved", "Post"])])
+    shots_ot = len(shots[shot_outcome.isin(["Goal", "Saved"])])
     xg_col = _col(shots, "shot_statsbomb_xg")
     xg_raw = xg_col.sum()
     xg = round(xg_raw if pd.notna(xg_raw) else 0, 2)
@@ -83,38 +137,60 @@ def compute_player_metrics(events: pd.DataFrame, player: str) -> dict:
     num_completed = len(passes[pass_outcome.isna()])
     pass_pct = round(num_completed / num_passes * 100, 1) if num_passes > 0 else 0
 
-    shot_assist = _col(passes, "pass_shot_assist")
-    key_passes = len(passes[shot_assist.notna()])
-    goal_assist = _col(passes, "pass_goal_assist")
-    assists = len(passes[goal_assist.notna()])
+    shot_assist = _col(passes, "pass_shot_assist").eq(True)
+    key_passes = int(shot_assist.sum())
+    goal_assist = _col(passes, "pass_goal_assist").eq(True)
+    all_shots = events[events["type"] == "Shot"]
+    all_shot_outcomes = _col(all_shots, "shot_outcome")
+    goal_shot_ids = (
+        set(all_shots.loc[all_shot_outcomes == "Goal", "id"].dropna())
+        if "id" in all_shots
+        else set()
+    )
+    assisted_shot_ids = set(
+        _col(passes.loc[goal_assist], "pass_assisted_shot_id").dropna()
+    )
+    assists = len(goal_shot_ids & assisted_shot_ids)
 
     xa = 0
-    for _, pk in passes[shot_assist.notna()].iterrows():
+    shot_assist_passes = passes[shot_assist] if "pass_shot_assist" in passes else passes.iloc[0:0]
+    for _, pk in shot_assist_passes.iterrows():
         shot_id = pk.get("pass_assisted_shot_id")
         if pd.notna(shot_id):
-            assisted = shots[shots["id"] == shot_id]
+            assisted = all_shots[all_shots["id"] == shot_id]
             if len(assisted) > 0:
                 val = assisted.iloc[0].get("shot_statsbomb_xg")
                 if pd.notna(val):
                     xa += val
     xa = round(xa, 2)
 
-    # Vectorized progressive passes (avoids O(n) iterrows)
     progressive_passes = 0
     passes_into_final_third = 0
     if "location" in passes.columns and "pass_end_location" in passes.columns:
-        locs = passes["location"].dropna()
-        ends = passes["pass_end_location"].dropna()
-        idx = locs.index.intersection(ends.index)
-        if len(idx) > 0:
-            dx_series = pd.Series(
-                [ends[i][0] - locs[i][0] for i in idx], index=idx
-            )
-            progressive_passes = int((dx_series > MIN_PROGRESSIVE_DIST).sum())
-            final_third = pd.Series(
-                [ends[i][0] for i in idx], index=idx
-            )
-            passes_into_final_third = int((final_third > FINAL_THIRD_X).sum())
+        locations = passes["location"]
+        end_locations = passes["pass_end_location"]
+        outcomes = _col(passes, "pass_outcome")
+        for start, end, outcome in zip(locations, end_locations, outcomes):
+            if not isinstance(start, (list, tuple)) or not isinstance(end, (list, tuple)):
+                continue
+            try:
+                start_x = float(start[0])
+                end_x = float(end[0])
+            except (IndexError, TypeError, ValueError):
+                continue
+            if pd.isna(start_x) or pd.isna(end_x):
+                continue
+            if end_x > FINAL_THIRD_X:
+                passes_into_final_third += 1
+            if pd.notna(outcome) or end_x <= start_x:
+                continue
+            distance = end_x - start_x
+            if start_x < 60:
+                threshold = 15 if end_x >= 60 else 30
+            else:
+                threshold = MIN_PROGRESSIVE_DIST
+            if distance >= threshold:
+                progressive_passes += 1
 
     pass_cross = _col(passes, "pass_cross")
     crosses = len(passes[pass_cross == True])
@@ -158,7 +234,7 @@ def compute_player_metrics(events: pd.DataFrame, player: str) -> dict:
     )
     tackle_pct = round(tackles_won / tackles * 100, 1) if tackles > 0 else 0
 
-    aerial_mask = duel_type.str.contains("Aerial", case=False, na=False)
+    aerial_mask = duel_type.astype("string").str.contains("Aerial", case=False, na=False)
     aerial_duels = len(duels[aerial_mask])
     aerial_won = len(
         duels[aerial_mask & duel_outcome.isin(["Won", "Success Out"])]
