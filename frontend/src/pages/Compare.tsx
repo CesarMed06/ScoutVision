@@ -4,6 +4,7 @@ import { Loader2, ArrowLeft, ImageIcon, X, RefreshCw, AlertCircle } from 'lucide
 import { getPlayerMetrics, searchPlayers, getPlayerPhoto, getPlayerAverages } from '../api'
 import type { PlayerMetricsResponse, PlayerSummary, AveragesResponse } from '../api'
 import MetricRadar from '../components/MetricRadar'
+import { useLanguage } from '../i18n'
 
 const RADAR_METRICS = [
   { key: 'goals_per_90', label: 'Goals/90' },
@@ -53,6 +54,7 @@ function PlayerSlot({ player, slot, loading, error, onSearch, onChange }: {
   onSearch: () => void
   onChange: () => void
 }) {
+  const { t } = useLanguage()
   const [photo, setPhoto] = useState<string | null>(null)
 
   useEffect(() => {
@@ -75,7 +77,7 @@ function PlayerSlot({ player, slot, loading, error, onSearch, onChange }: {
           <button
             onClick={onChange}
             className="absolute top-2 right-2 p-1.5 bg-gray-800 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-gray-700 transition-all text-gray-400 hover:text-white z-10"
-            title="Change player"
+            title={t('Change player')}
           >
             <RefreshCw className="w-3.5 h-3.5" />
           </button>
@@ -88,7 +90,7 @@ function PlayerSlot({ player, slot, loading, error, onSearch, onChange }: {
               </div>
             )}
             <div className="min-w-0">
-              <p className="text-xs text-gray-500 mb-0.5">Player {slot.toUpperCase()}</p>
+              <p className="text-xs text-gray-500 mb-0.5">{t('Player')} {slot.toUpperCase()}</p>
               <p className="text-base font-bold text-white truncate group-hover:text-emerald-400 transition-colors">
                 {player.player_name}
               </p>
@@ -104,9 +106,9 @@ function PlayerSlot({ player, slot, loading, error, onSearch, onChange }: {
             <AlertCircle className="w-6 h-6 text-red-400" />
           </div>
           <div>
-            <p className="text-xs text-gray-500 mb-0.5">Player {slot.toUpperCase()}</p>
-            <p className="text-sm text-red-400">{error}</p>
-            <button onClick={onSearch} className="text-xs text-emerald-400 hover:text-emerald-300 mt-1">Try again</button>
+            <p className="text-xs text-gray-500 mb-0.5">{t('Player')} {slot.toUpperCase()}</p>
+            <p className="text-sm text-red-400">{t(error)}</p>
+            <button onClick={onSearch} className="text-xs text-emerald-400 hover:text-emerald-300 mt-1">{t('Try again')}</button>
           </div>
         </div>
       ) : (
@@ -117,7 +119,7 @@ function PlayerSlot({ player, slot, loading, error, onSearch, onChange }: {
           <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center">
             <ImageIcon className="w-6 h-6" />
           </div>
-          <span className="text-sm font-medium">Select Player {slot.toUpperCase()}</span>
+          <span className="text-sm font-medium">{t('Select Player')} {slot.toUpperCase()}</span>
         </button>
       )}
     </div>
@@ -152,6 +154,7 @@ function CompareRow({ label, valA, valB, suffix }: {
 }
 
 export default function Compare() {
+  const { t } = useLanguage()
   const [searchParams, setSearchParams] = useSearchParams()
   const aId = searchParams.get('a')
   const bId = searchParams.get('b')
@@ -233,7 +236,7 @@ export default function Compare() {
         const avgVal = (averages[m.key as keyof AveragesResponse] as number) || 0
         const maxVal = m.key.includes('pct') ? 100 : Math.max(valA, avgVal * 2, 5)
         return {
-          metric: m.label,
+          metric: t(m.label),
           value: Math.min(100, valA / maxVal * 100),
           avg: Math.min(100, avgVal / maxVal * 100),
         }
@@ -257,14 +260,14 @@ export default function Compare() {
       <div className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center pt-24 px-4" onClick={() => setShowSearchModal(null)}>
         <div className="bg-gray-900 border border-gray-800 rounded-xl w-full max-w-md p-4" onClick={e => e.stopPropagation()}>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-white font-semibold">Select Player {slot.toUpperCase()}</h3>
+            <h3 className="text-white font-semibold">{t('Select Player')} {slot.toUpperCase()}</h3>
             <button onClick={() => setShowSearchModal(null)} className="text-gray-500 hover:text-white transition-colors">
               <X className="w-5 h-5" />
             </button>
           </div>
           <input
             type="text"
-            placeholder="Search players..."
+            placeholder={t('Search players...')}
             value={searchQ}
             onChange={(e) => setSearchQ(e.target.value)}
             autoFocus
@@ -287,7 +290,7 @@ export default function Compare() {
               </button>
             ))}
             {searchQ.trim() && searchR.length === 0 && (
-              <p className="text-gray-500 text-sm text-center py-4">No players found</p>
+              <p className="text-gray-500 text-sm text-center py-4">{t('No players found')}</p>
             )}
           </div>
         </div>
@@ -298,10 +301,10 @@ export default function Compare() {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
       <Link to="/players" className="inline-flex items-center gap-1 text-gray-400 hover:text-white mb-6 transition-colors">
-        <ArrowLeft className="w-4 h-4" /> Back to Players
+        <ArrowLeft className="w-4 h-4" /> {t('Back to Players')}
       </Link>
 
-      <h1 className="text-2xl font-bold text-white mb-6">Compare Players</h1>
+      <h1 className="text-2xl font-bold text-white mb-6">{t('Compare Players')}</h1>
 
       <div className="grid sm:grid-cols-2 gap-4 mb-8">
         <PlayerSlot
@@ -327,7 +330,7 @@ export default function Compare() {
       {!showFullComparison && (loadingA || loadingB) && (
         <div className="flex items-center justify-center gap-2 text-gray-400 py-8">
           <Loader2 className="w-5 h-5 animate-spin" />
-          <span className="text-sm">Loading player data... (first load may take ~30s)</span>
+          <span className="text-sm">{t('Loading player data... (first load may take ~30s)')}</span>
         </div>
       )}
 
@@ -336,29 +339,29 @@ export default function Compare() {
           {/* Radar — Player A vs Global Average (blue dashed line) */}
           {averagesLoading ? (
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-8">
-              <h3 className="text-white font-semibold mb-1">Comparison Radar</h3>
+              <h3 className="text-white font-semibold mb-1">{t('Comparison Radar')}</h3>
               <div className="flex items-center justify-center gap-2 text-gray-400 py-12">
                 <Loader2 className="w-5 h-5 animate-spin" />
-                <span className="text-sm">Computing league averages... (first load ~15s)</span>
+                <span className="text-sm">{t('Computing league averages... (first load ~15s)')}</span>
               </div>
             </div>
           ) : radarData.length > 0 ? (
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-8">
-              <h3 className="text-white font-semibold mb-1">Comparison Radar</h3>
-              <p className="text-xs text-gray-500 mb-4">Player A vs League Avg (blue dashed) — scaled against league averages</p>
+              <h3 className="text-white font-semibold mb-1">{t('Comparison Radar')}</h3>
+              <p className="text-xs text-gray-500 mb-4">{t('Player A vs League Avg (blue dashed) — scaled against league averages')}</p>
               <MetricRadar data={radarData} />
             </div>
           ) : null}
 
           {/* Stats Comparison — doesn't need averages */}
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-8">
-            <h3 className="text-white font-semibold mb-1">Stats Comparison</h3>
-            <p className="text-xs text-gray-500 mb-4">Green indicates the better value</p>
+            <h3 className="text-white font-semibold mb-1">{t('Stats Comparison')}</h3>
+            <p className="text-xs text-gray-500 mb-4">{t('Green indicates the better value')}</p>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-xs text-gray-500 uppercase border-b border-gray-800">
-                    <th className="text-left py-2 pr-3 font-medium">Metric</th>
+                    <th className="text-left py-2 pr-3 font-medium">{t('Metric')}</th>
                     <th className="text-right px-3 font-medium">{playerA.player_name.split(' ').pop()}</th>
                     <th className="text-right px-3 font-medium">{playerB.player_name.split(' ').pop()}</th>
                   </tr>
@@ -368,13 +371,13 @@ export default function Compare() {
                     <React.Fragment key={section.category}>
                       <tr className="border-b border-gray-800">
                         <td colSpan={3} className="py-2 text-xs font-bold text-gray-300 uppercase tracking-wider">
-                          {section.category}
+                          {t(section.category)}
                         </td>
                       </tr>
                       {section.keys.map((m) => (
                         <CompareRow
                           key={m.key}
-                          label={m.label}
+                          label={t(m.label)}
                           valA={getField(playerA.totals as Record<string, unknown>, m.key)}
                           valB={getField(playerB.totals as Record<string, unknown>, m.key)}
                           suffix={m.suffix}
@@ -391,7 +394,7 @@ export default function Compare() {
 
       {!showFullComparison && !loadingA && !loadingB && !aId && !bId && (
         <p className="text-center text-gray-500 mt-8">
-          Select two players above to compare their stats.
+          {t('Select two players above to compare their stats.')}
         </p>
       )}
     </div>

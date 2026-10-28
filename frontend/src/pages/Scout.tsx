@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Loader2, SlidersHorizontal, Search, ArrowUpDown, Target, ImageIcon, ChevronLeft, ChevronRight } from 'lucide-react'
 import { apiUrl, getPlayerPhoto } from '../api'
+import { useLanguage } from '../i18n'
 
 interface ScoutFilters {
   min_goals_per_90: number
@@ -84,6 +85,7 @@ async function scoutSearch(query: string): Promise<ScoutResult[]> {
 }
 
 export default function Scout() {
+  const { t } = useLanguage()
   const [filters, setFilters] = useState<ScoutFilters>(DEFAULT_FILTERS)
   const [results, setResults] = useState<ScoutResult[]>([])
   const [loading, setLoading] = useState(false)
@@ -141,10 +143,10 @@ export default function Scout() {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
       <div className="flex items-center gap-3 mb-6">
         <SlidersHorizontal className="w-6 h-6 text-emerald-400" />
-        <h1 className="text-2xl font-bold text-white">Scout Filter</h1>
+        <h1 className="text-2xl font-bold text-white">{t('Scout Filter')}</h1>
         {activeCount > 0 && (
           <span className="px-2 py-0.5 text-xs bg-emerald-500/20 text-emerald-400 rounded-full">
-            {activeCount} active
+            {activeCount} {t('active')}
           </span>
         )}
       </div>
@@ -154,7 +156,7 @@ export default function Scout() {
           {FILTER_CONFIG.map((cfg) => (
             <div key={cfg.key}>
               <label className="flex items-center justify-between text-sm text-gray-400 mb-1">
-                <span>{cfg.label}</span>
+                <span>{t(cfg.label)}</span>
                 <span className="font-mono text-white">
                   {cfg.step < 1 ? filters[cfg.key].toFixed(2) : filters[cfg.key].toFixed(0)}
                 </span>
@@ -181,14 +183,14 @@ export default function Scout() {
 
         <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-gray-800">
           <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-400">Sort by</label>
+            <label className="text-sm text-gray-400">{t('Sort by')}</label>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
               className="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white focus:outline-none focus:border-emerald-500"
             >
               {SORT_OPTIONS.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                <option key={opt.value} value={opt.value}>{t(opt.label)}</option>
               ))}
             </select>
           </div>
@@ -197,7 +199,7 @@ export default function Scout() {
             className="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-400 hover:text-white transition-colors flex items-center gap-1"
           >
             <ArrowUpDown className="w-3.5 h-3.5" />
-            {sortDir === 'desc' ? 'High → Low' : 'Low → High'}
+            {sortDir === 'desc' ? t('High → Low') : t('Low → High')}
           </button>
           <button
             onClick={doSearch}
@@ -209,7 +211,7 @@ export default function Scout() {
             ) : (
               <Search className="w-4 h-4" />
             )}
-            {activeCount > 0 ? 'Apply Filters' : 'Show All Players'}
+            {activeCount > 0 ? t('Apply Filters') : t('Show All Players')}
           </button>
         </div>
       </div>
@@ -223,16 +225,16 @@ export default function Scout() {
       {!loading && searched && results.length === 0 && (
         <div className="text-center py-16">
           <Target className="w-12 h-12 text-gray-700 mx-auto mb-3" />
-          <p className="text-gray-500 text-lg">No players match your filters</p>
-          <p className="text-gray-600 text-sm mt-1">Try lowering the thresholds</p>
+          <p className="text-gray-500 text-lg">{t('No players match your filters')}</p>
+          <p className="text-gray-600 text-sm mt-1">{t('Try lowering the thresholds')}</p>
         </div>
       )}
 
       {!loading && results.length > 0 && (
         <>
           <p className="text-gray-400 text-sm mb-3">
-            {results.length} players found
-            {totalPages > 1 && <span className="text-gray-600"> · Page {page}/{totalPages}</span>}
+            {results.length} {t('players found')}
+            {totalPages > 1 && <span className="text-gray-600"> · {t('Page')} {page}/{totalPages}</span>}
           </p>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {paged.map((p) => (
@@ -274,17 +276,17 @@ export default function Scout() {
                 className="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
               >
                 <ChevronLeft className="w-4 h-4" />
-                Previous
+                {t('Previous')}
               </button>
               <span className="text-xs text-gray-500">
-                Page {page} of {totalPages}
+                {t('Page')} {page} {t('of')} {totalPages}
               </span>
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
                 className="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
               >
-                Next
+                {t('Next')}
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
@@ -295,8 +297,8 @@ export default function Scout() {
       {!searched && !loading && (
         <div className="text-center py-16">
           <SlidersHorizontal className="w-12 h-12 text-gray-700 mx-auto mb-3" />
-          <p className="text-gray-500">Adjust the filters above and click "Apply Filters"</p>
-          <p className="text-gray-600 text-sm mt-1">Find players by minimum performance thresholds</p>
+          <p className="text-gray-500">{t('Adjust the filters above and click "Apply Filters"')}</p>
+          <p className="text-gray-600 text-sm mt-1">{t('Find players by minimum performance thresholds')}</p>
         </div>
       )}
     </div>

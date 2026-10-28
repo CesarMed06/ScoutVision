@@ -3,6 +3,7 @@ import { Search, Loader2 } from 'lucide-react'
 import { searchPlayers, getFeaturedPlayers } from '../api'
 import type { PlayerSummary, FeaturedPlayer } from '../api'
 import PlayerCard from '../components/PlayerCard'
+import { useLanguage } from '../i18n'
 
 function SkeletonCard() {
   return (
@@ -19,6 +20,7 @@ function SkeletonCard() {
 }
 
 export default function Players() {
+  const { t } = useLanguage()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<PlayerSummary[]>([])
   const [loading, setLoading] = useState(false)
@@ -66,7 +68,7 @@ export default function Players() {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search players by name..."
+          placeholder={t('Search players by name...')}
           className="w-full pl-12 pr-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition-colors"
           autoFocus
         />
@@ -79,12 +81,12 @@ export default function Players() {
             <PlayerCard key={`${p.player_id}-${p.match_id}`} player={p} />
           ))}
           {!loading && results.length === 0 && (
-            <p className="col-span-full text-center text-gray-500 py-12">No players found</p>
+            <p className="col-span-full text-center text-gray-500 py-12">{t('No players found')}</p>
           )}
         </div>
       ) : (
         <>
-          <h2 className="text-lg font-semibold text-white mb-4">Featured Players</h2>
+          <h2 className="text-lg font-semibold text-white mb-4">{t('Featured Players')}</h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {featuredLoading
               ? Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
