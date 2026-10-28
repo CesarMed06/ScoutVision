@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react'
 import { Search, Home, GitCompare, SlidersHorizontal } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { getHealth } from '../api'
+import { useLanguage } from '../i18n'
 
 export default function Navbar() {
   const loc = useLocation()
+  const { language, setLanguage, t } = useLanguage()
   const [dbStatus, setDbStatus] = useState<'loading' | number>('loading')
   const [demoMode, setDemoMode] = useState(false)
 
@@ -35,7 +37,7 @@ export default function Navbar() {
                 ? 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10'
                 : 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
             }`}
-            title={dbStatus === 'loading' ? 'Indexing players...' : `${dbStatus} players indexed`}
+            title={dbStatus === 'loading' ? t('Indexing players...') : `${dbStatus} ${t('players indexed')}`}
           >
             {dbStatus === 'loading' ? '···' : dbStatus}
           </span>
@@ -49,7 +51,7 @@ export default function Navbar() {
             }`}
           >
             <Home className="w-4 h-4 inline mr-1.5" />
-            Home
+            {t('Home')}
           </Link>
           <Link
             to="/players"
@@ -58,7 +60,7 @@ export default function Navbar() {
             }`}
           >
             <Search className="w-4 h-4 inline mr-1.5" />
-            Players
+            {t('Players')}
           </Link>
           <Link
             to="/scout"
@@ -67,7 +69,7 @@ export default function Navbar() {
             }`}
           >
             <SlidersHorizontal className="w-4 h-4 inline mr-1.5" />
-            Scout
+            {t('Scout')}
           </Link>
           <Link
             to="/compare"
@@ -76,8 +78,16 @@ export default function Navbar() {
             }`}
           >
             <GitCompare className="w-4 h-4 inline mr-1.5" />
-            Compare
+            {t('Compare')}
           </Link>
+        </div>
+        <div className="ml-2 flex items-center rounded-md bg-gray-900 p-0.5" aria-label={language === 'en' ? 'Interface language' : 'Idioma de la interfaz'}>
+          <button type="button" onClick={() => setLanguage('en')} aria-label="English" aria-pressed={language === 'en'} className={`px-2 py-1 rounded text-xs font-medium ${language === 'en' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'}`}>
+            <svg className="w-5 h-4 rounded-sm" viewBox="0 0 60 30" aria-hidden="true"><rect fill="#012169" width="60" height="30"/><path d="M0 0l60 30M60 0L0 30" stroke="#fff" strokeWidth="10"/><path d="M30 0v30M0 15h60" stroke="#fff" strokeWidth="12"/><path d="M30 0v30M0 15h60" stroke="#C8102E" strokeWidth="8"/></svg>
+          </button>
+          <button type="button" onClick={() => setLanguage('es')} aria-label="Español" aria-pressed={language === 'es'} className={`px-2 py-1 rounded text-xs font-medium ${language === 'es' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'}`}>
+            <svg className="w-5 h-4 rounded-sm" viewBox="0 0 60 30" aria-hidden="true"><rect fill="#AA151B" width="60" height="12"/><rect fill="#F1BF00" y="12" width="60" height="6"/><rect fill="#AA151B" y="18" width="60" height="12"/></svg>
+          </button>
         </div>
       </div>
     </nav>

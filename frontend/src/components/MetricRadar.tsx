@@ -1,3 +1,4 @@
+import { useLanguage } from '../i18n'
 import {
   RadarChart,
   PolarGrid,
@@ -13,6 +14,7 @@ interface MetricRadarProps {
 }
 
 export default function MetricRadar({ data }: MetricRadarProps) {
+  const { t } = useLanguage()
   if (!data.length) return null
 
   return (
@@ -32,7 +34,7 @@ export default function MetricRadar({ data }: MetricRadarProps) {
           stroke="#4B5563"
         />
         <Radar
-          name="Player"
+          name={t('Player')}
           dataKey="value"
           stroke="#34D399"
           fill="#34D399"
@@ -41,7 +43,7 @@ export default function MetricRadar({ data }: MetricRadarProps) {
         />
         {data[0]?.avg !== undefined && (
           <Radar
-            name="Avg"
+            name={t('Avg')}
             dataKey="avg"
             stroke="#60A5FA"
             fill="#60A5FA"

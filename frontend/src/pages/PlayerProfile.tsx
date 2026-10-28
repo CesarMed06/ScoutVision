@@ -4,6 +4,7 @@ import { Loader2, Target, Zap, Footprints, Swords, FileText, ChevronDown, Chevro
 import { getPlayerMetrics, getAiReportStream, getPlayerPhoto, getSimilarPlayers, getPlayerAverages, getVizUrl } from '../api'
 import type { PlayerMetricsResponse, PlayerMetricsTotals, SimilarPlayer, AveragesResponse } from '../api'
 import MetricRadar from '../components/MetricRadar'
+import { useLanguage } from '../i18n'
 
 const METRIC_LABELS: Record<string, string> = {
   goals: 'Goals', shots: 'Shots', xg: 'xG', assists: 'Assists', xa: 'xA',
@@ -55,21 +56,22 @@ function Section({ title, icon, children }: { title: string; icon: React.ReactNo
 }
 
 function VizModal({ playerId, matchId, matchLabel, onClose }: { playerId: number; matchId: number; matchLabel: string; onClose: () => void }) {
+  const { t } = useLanguage()
   const [activeTab, setActiveTab] = useState<'heatmap' | 'passes' | 'shots'>('heatmap')
   const [imgError, setImgError] = useState(false)
   const [imgLoading, setImgLoading] = useState(true)
 
   const tabs = [
-    { key: 'heatmap' as const, label: 'Heatmap', icon: Map },
-    { key: 'passes' as const, label: 'Pass Map', icon: ArrowUpCircle },
-    { key: 'shots' as const, label: 'Shot Map', icon: Crosshair },
+    { key: 'heatmap' as const, label: t('Heatmap'), icon: Map },
+    { key: 'passes' as const, label: t('Pass Map'), icon: ArrowUpCircle },
+    { key: 'shots' as const, label: t('Shot Map'), icon: Crosshair },
   ]
 
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-gray-900 border border-gray-800 rounded-xl w-full max-w-3xl max-h-[90vh] overflow-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b border-gray-800">
-          <h3 className="text-white font-semibold">Visualizations — {matchLabel}</h3>
+          <h3 className="text-white font-semibold">{t('Visualizations —')} {matchLabel}</h3>
           <button onClick={onClose} className="text-gray-500 hover:text-white text-xl leading-none">&times;</button>
         </div>
         <div className="flex gap-1 px-4 pt-3">
@@ -90,10 +92,10 @@ function VizModal({ playerId, matchId, matchLabel, onClose }: { playerId: number
         </div>
         <div className="p-4">
           {imgError ? (
-            <p className="text-gray-500 text-center py-12">Not available for this match</p>
+            <p className="text-gray-500 text-center py-12">{t('Not available for this match')}</p>
           ) : (
             <>
-              {imgLoading && <p className="text-gray-500 text-center py-12">Loading…</p>}
+              {imgLoading && <p className="text-gray-500 text-center py-12">{t('Loading…')}</p>}
               <img
                 src={getVizUrl(activeTab, playerId, matchId)}
                 alt={`${activeTab} for match ${matchId}`}
@@ -110,12 +112,13 @@ function VizModal({ playerId, matchId, matchLabel, onClose }: { playerId: number
 }
 
 export default function PlayerProfile() {
+  const { t: tr, language } = useLanguage()
   const { playerId } = useParams()
   const [data, setData] = useState<PlayerMetricsResponse | null>(null)
   const [reportCache, setReportCache] = useState<Record<string, string>>({})
   const [reportLoading, setReportLoading] = useState(false)
   const [showReport, setShowReport] = useState(false)
-  const [reportLang, setReportLang] = useState<'en' | 'es'>('en')
+  const reportLang = language
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
@@ -177,8 +180,8 @@ export default function PlayerProfile() {
   if (error || !data) {
     return (
       <div className="text-center py-32">
-        <p className="text-gray-400 text-lg mb-4">{error || 'No data'}</p>
-        <Link to="/players" className="text-emerald-400 hover:text-emerald-300 underline">Back to Players</Link>
+        <p className="text-gray-400 text-lg mb-4">{tr(error || 'No data')}</p>
+        <Link to="/players" className="text-emerald-400 hover:text-emerald-300 underline">{tr('Back to Players')}</Link>
       </div>
     )
   }
@@ -191,7 +194,7 @@ export default function PlayerProfile() {
     const avgVal = averages ? (averages[m.key as keyof AveragesResponse] as number) || 0 : 0
     const maxVal = m.key.includes('pct') ? 100 : Math.max(avgVal * 3, val * 1.5, 0.5)
     return {
-      metric: m.label,
+      metric: tr(m.label),
       value: Math.min(100, val / maxVal * 100),
       avg: averages ? Math.min(100, avgVal / maxVal * 100) : undefined,
     }
@@ -209,7 +212,7 @@ export default function PlayerProfile() {
       t[k] !== undefined ? (
         <MetricCard
           key={k}
-          label={METRIC_LABELS[k] || k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+          label={tr(METRIC_LABELS[k] || k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()))}
           value={(t[k] as number) || 0}
           suffix={k.endsWith('_pct') ? '%' : ''}
         />
@@ -232,7 +235,7 @@ export default function PlayerProfile() {
           {data.match_details[0] && (
             <p className="text-gray-400 text-sm">
               {(data.match_details[0] as Record<string, string>).team || ''}{' '}
-              · {matchCount} match{matchCount !== 1 ? 'es' : ''}{' '}
+              · {matchCount === 1 ? tr('1 match') : `${matchCount} ${tr('matches')}`}{' '}
               · {t.minutes} min
             </p>
           )}
@@ -241,53 +244,38 @@ export default function PlayerProfile() {
 
       <div className="grid lg:grid-cols-3 gap-6 mb-8">
         <div className="lg:col-span-2">
-          <Section title="Attack" icon={<Target className="w-4 h-4 text-red-400" />}>
+          <Section title={tr('Attack')} icon={<Target className="w-4 h-4 text-red-400" />}>
             {renderMetrics(attackKeys)}
           </Section>
 
-          <Section title="Passing" icon={<Footprints className="w-4 h-4 text-blue-400" />}>
+          <Section title={tr('Passing')} icon={<Footprints className="w-4 h-4 text-blue-400" />}>
             {renderMetrics(passingKeys)}
           </Section>
 
-          <Section title="Dribbling & Carries" icon={<Zap className="w-4 h-4 text-yellow-400" />}>
+          <Section title={tr('Dribbling & Carries')} icon={<Zap className="w-4 h-4 text-yellow-400" />}>
             {renderMetrics(dribbleKeys)}
           </Section>
 
-          <Section title="Defense" icon={<Swords className="w-4 h-4 text-purple-400" />}>
+          <Section title={tr('Defense')} icon={<Swords className="w-4 h-4 text-purple-400" />}>
             {renderMetrics(defenseKeys)}
           </Section>
 
-          <Section title="Physical" icon={<Swords className="w-4 h-4 text-orange-400" />}>
+          <Section title={tr('Physical')} icon={<Swords className="w-4 h-4 text-orange-400" />}>
             {renderMetrics(physicalKeys)}
           </Section>
 
-          <Section title="Efficiency" icon={<Target className="w-4 h-4 text-emerald-400" />}>
+          <Section title={tr('Efficiency')} icon={<Target className="w-4 h-4 text-emerald-400" />}>
             {renderMetrics(pctKeys)}
           </Section>
         </div>
 
         <div className="lg:col-span-1">
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-4">
-            <h3 className="text-white font-semibold mb-2">Per 90 vs Average</h3>
+            <h3 className="text-white font-semibold mb-2">{tr('Per 90 vs Average')}</h3>
             <MetricRadar data={radarData} />
             {averages && (
-              <p className="text-xs text-gray-500 text-center mt-1">Avg from {averages.players_sampled || '?'} players</p>
+              <p className="text-xs text-gray-500 text-center mt-1">{tr('Avg from')} {averages.players_sampled || '?'} {tr('players')}</p>
             )}
-          </div>
-
-          <div className="flex gap-2 mb-4">
-            <button
-              onClick={() => setReportLang('en')}
-              className={`inline-flex items-center flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${reportLang === 'en' ? 'bg-emerald-500 text-black' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
-            >
-              <svg className="w-5 h-4 rounded-sm mr-1.5" viewBox="0 0 60 30"><rect fill="#012169" width="60" height="30"/><path d="M0 0l60 30M60 0L0 30" stroke="#fff" strokeWidth="10"/><path d="M30 0v30M0 15h60" stroke="#fff" strokeWidth="12"/><path d="M30 0v30M0 15h60" stroke="#C8102E" strokeWidth="8"/></svg>English
-            </button>
-            <button
-              onClick={() => setReportLang('es')}
-              className={`inline-flex items-center flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${reportLang === 'es' ? 'bg-emerald-500 text-black' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
-            >
-              <svg className="w-5 h-4 rounded-sm mr-1.5" viewBox="0 0 60 30"><rect fill="#AA151B" width="60" height="12"/><rect fill="#F1BF00" y="12" width="60" height="6"/><rect fill="#AA151B" y="18" width="60" height="12"/></svg>Español
-            </button>
           </div>
 
           <button
@@ -299,7 +287,7 @@ export default function PlayerProfile() {
               <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
               <FileText className="w-5 h-5" />
-            )}              {reportLang === 'en' ? 'AI Scouting Report' : 'Informe de Scouting'}
+            )}              {tr('AI Scouting Report')}
           </button>
 
           {(reportCache[reportLang] || reportLoading) && (
@@ -310,7 +298,7 @@ export default function PlayerProfile() {
               >
                 <span className="flex items-center gap-2">
                   <FileText className="w-4 h-4 text-emerald-400" />
-                  {reportLang === 'en' ? 'Scout Report' : 'Informe'}
+                  {tr('Scout Report')}
                   {reportLoading && <Loader2 className="w-3 h-3 animate-spin text-emerald-400" />}
                 </span>
                 {showReport ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -328,7 +316,7 @@ export default function PlayerProfile() {
             <div className="mt-4 bg-gray-900 border border-gray-800 rounded-xl p-4">
               <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
                 <Users className="w-4 h-4 text-emerald-400" />
-                Similar Players
+                {tr('Similar Players')}
               </h3>
               <div className="space-y-2">
                 {similarPlayers.slice(0, 5).map((p) => (
@@ -338,12 +326,12 @@ export default function PlayerProfile() {
                       className="flex-1 text-sm"
                     >
                       <span className="text-white">{p.player_name}</span>
-                      <span className="text-gray-500 ml-2">{(p.similarity * 100).toFixed(0)}% match</span>
+                      <span className="text-gray-500 ml-2">{(p.similarity * 100).toFixed(0)}% {tr('match')}</span>
                     </Link>
                     <Link
                       to={`/compare?a=${playerId}&b=${p.player_id}`}
                       className="p-1.5 text-gray-500 hover:text-emerald-400 opacity-0 group-hover:opacity-100 transition-all"
-                      title="Compare"
+                      title={tr('Compare')}
                     >
                       <GitCompare className="w-4 h-4" />
                     </Link>
@@ -356,12 +344,12 @@ export default function PlayerProfile() {
       </div>
 
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-        <h3 className="text-white font-semibold mb-3">Match Log ({matchCount})</h3>
+        <h3 className="text-white font-semibold mb-3">{tr('Match Log')} ({matchCount})</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-gray-400 text-xs uppercase border-b border-gray-800">
-                <th className="text-left py-2 pr-4">Match</th>
+                <th className="text-left py-2 pr-4">{tr('Match')}</th>
                 <th className="text-right px-2">Min</th>
                 <th className="text-right px-2">G</th>
                 <th className="text-right px-2">A</th>
@@ -398,7 +386,7 @@ export default function PlayerProfile() {
                       <button
                         onClick={() => setVizMatch({ matchId: matchId, team: String(row.team || '') })}
                         className="p-1.5 text-gray-500 hover:text-emerald-400 transition-colors"
-                        title="View visualizations"
+                        title={tr('View visualizations')}
                       >
                         <Map className="w-4 h-4" />
                       </button>
