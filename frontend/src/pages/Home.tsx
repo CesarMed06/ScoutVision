@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Search, BarChart3, FileText, Github, ArrowRight } from 'lucide-react'
+import { useLanguage } from '../i18n'
 
 const features = [
   { icon: Search, title: 'Player Discovery', desc: 'Search through thousands of players from top European leagues. Find prospects by name, team, or competition.' },
@@ -8,6 +9,7 @@ const features = [
 ]
 
 export default function Home() {
+  const { t } = useLanguage()
   return (
     <div className="min-h-[calc(100vh-3.5rem)] flex flex-col">
       <section className="flex-1 flex flex-col items-center justify-center px-6 py-20 text-center">
@@ -18,14 +20,14 @@ export default function Home() {
           </h1>
         </div>
         <p className="text-gray-400 text-lg sm:text-xl mb-10 max-w-xl">
-          AI-powered football scouting engine. Uncover hidden gems from leagues around the world.
+          {t('AI-powered football scouting engine. Uncover hidden gems from leagues around the world.')}
         </p>
         <div className="flex flex-wrap gap-4 justify-center">
           <Link
             to="/players"
             className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-lg transition-all flex items-center gap-2"
           >
-            Explore Players
+            {t('Explore Players')}
             <ArrowRight className="w-4 h-4" />
           </Link>
           <a
@@ -35,7 +37,7 @@ export default function Home() {
             className="px-6 py-3 border border-gray-700 hover:border-gray-500 hover:text-white text-gray-300 rounded-lg transition-all flex items-center gap-2"
           >
             <Github className="w-5 h-5" />
-            Source
+            {t('Source')}
           </a>
         </div>
         <div className="mt-12 text-sm text-gray-600">
@@ -47,8 +49,8 @@ export default function Home() {
         {features.map((f) => (
           <div key={f.title} className="p-6 bg-gray-900/50 border border-gray-800 rounded-xl">
             <f.icon className="w-8 h-8 text-emerald-400 mb-4" />
-            <h3 className="text-white font-semibold mb-2">{f.title}</h3>
-            <p className="text-sm text-gray-400 leading-relaxed">{f.desc}</p>
+            <h3 className="text-white font-semibold mb-2">{t(f.title)}</h3>
+            <p className="text-sm text-gray-400 leading-relaxed">{t(f.desc)}</p>
           </div>
         ))}
       </section>
