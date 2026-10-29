@@ -6,6 +6,7 @@ const translations: Record<string, string> = {
   'Indexing players...': 'Indexando jugadores...',
   'players indexed': 'jugadores indexados',
   'Interface language': 'Idioma de la interfaz',
+  Demo: 'Demostración',
   Home: 'Inicio', Players: 'Jugadores', Scout: 'Buscar', Compare: 'Comparar',
   'Player Discovery': 'Descubrimiento de jugadores',
   'Search through thousands of players from top European leagues. Find prospects by name, team, or competition.': 'Busca entre miles de jugadores de las principales ligas europeas. Encuentra promesas por nombre, equipo o competición.',
@@ -15,6 +16,7 @@ const translations: Record<string, string> = {
   'Get natural language scouting reports powered by Llama 3. Every player evaluated with strengths, weaknesses, and a grade.': 'Genera informes de scouting con Llama 3. Evalúa las fortalezas, debilidades y calificación de cada jugador.',
   'AI-powered football scouting engine. Uncover hidden gems from leagues around the world.': 'Plataforma de scouting de fútbol con IA. Descubre talentos ocultos en ligas de todo el mundo.',
   'Explore Players': 'Explorar jugadores', Source: 'Código fuente',
+  'Search players by name...': 'Buscar jugadores por nombre...',
   'Built with StatsBomb Open Data · Llama 3 · FastAPI · React': 'Desarrollado con datos abiertos de StatsBomb · Llama 3 · FastAPI · React',
   'Featured Players': 'Jugadores destacados',
   'No players found': 'No se encontraron jugadores',
@@ -70,7 +72,16 @@ const translations: Record<string, string> = {
   Dribbling: 'Regates', 'xG/90': 'xG/90', 'xA/90': 'xA/90',
   'Something went wrong': 'Algo salió mal',
   'The app encountered an unexpected error. This is likely temporary — try reloading.': 'La aplicación encontró un error inesperado. Puede ser temporal; prueba a recargar.',
-  'Reload Page': 'Recargar página', 'Error details': 'Detalles del error', Avg: 'Prom.',
+  'Reload Page': 'Recargar página',  'Error details': 'Detalles del error', Avg: 'Prom.',
+  'Search failed': 'Error en la búsqueda',
+  'No response body': 'La respuesta no contiene datos',
+  'Report generation failed': 'No se pudo generar el informe. Comprueba la conexión y la configuración de la API.',
+  'Report timed out': 'Se agotó el tiempo de espera del informe',
+  'Stream failed': 'Error al recibir el informe',
+  'No match data found for player ID': 'No se encontraron datos de partidos para el jugador',
+  'GROQ_API_KEY not configured': 'La clave de Groq no está configurada',
+  'Error:': 'Error:',
+  Minutes: 'Minutos', Visualizations: 'Visualizaciones',
 }
 
 interface LanguageContextValue {
@@ -95,11 +106,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     document.documentElement.lang = language
   }, [language])
 
-  const t = (text: string) => {
-    if (language !== 'es') return text
-    if (text.startsWith('Could not load player ')) return `${translations['Could not load player']}${text.slice('Could not load player'.length)}`
-    return translations[text] || text
-  }
+  const t = (text: string) => translateText(text, language)
 
   return (
     <LanguageContext.Provider value={{ language, setLanguage, t }}>
@@ -112,8 +119,20 @@ export function useLanguage() {
   return useContext(LanguageContext)
 }
 
-export function translate(text: string): string {
-  if (localStorage.getItem('scoutvision-language') !== 'es') return text
+function translateText(text: string, language: Language): string {
+  if (language !== 'es') return text
   if (text.startsWith('Could not load player ')) return `${translations['Could not load player']}${text.slice('Could not load player'.length)}`
+  if (text.startsWith('No match data found for player ID ')) return `${translations['No match data found for player ID']} ${text.slice('No match data found for player ID '.length)}`
+  if (text.startsWith('GROQ_API_KEY not configured')) return translations['GROQ_API_KEY not configured']
+  if (text.startsWith('Error: ')) {
+    const detail = text.slice('Error: '.length)
+    if (/^HTTP \d+$/.test(detail)) return `${translations['Report generation failed']} (${detail})`
+    const translated = translateText(detail, language)
+    return translated === detail ? translations['Report generation failed'] : `${translations['Error:']} ${translated}`
+  }
   return translations[text] || text
+}
+
+export function translate(text: string): string {
+  return translateText(text, localStorage.getItem('scoutvision-language') === 'es' ? 'es' : 'en')
 }
