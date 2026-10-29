@@ -30,7 +30,7 @@ export default function Navbar() {
         <Link to="/" className="flex items-center gap-2.5 text-white hover:opacity-80 transition-opacity shrink-0">
           <img src="/logo-icon.svg" alt="ScoutVision" className="w-7 h-7" />
           <span className="font-bold text-lg tracking-tight">Scout<span className="text-emerald-400">Vision</span></span>
-          {demoMode && <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-300">Demo</span>}
+          {demoMode && <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-300">{t('Demo')}</span>}
           <span
             className={`ml-1 text-[10px] px-1.5 py-0.5 rounded-full border ${
               dbStatus === 'loading'
