@@ -41,7 +41,7 @@ export default function Home() {
           </a>
         </div>
         <div className="mt-12 text-sm text-gray-600">
-          Built with StatsBomb Open Data · Llama 3 · FastAPI · React
+          {t('Built with StatsBomb Open Data · Llama 3 · FastAPI · React')}
         </div>
       </section>
 

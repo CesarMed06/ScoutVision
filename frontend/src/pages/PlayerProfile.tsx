@@ -305,7 +305,7 @@ export default function PlayerProfile() {
               </button>
               {showReport && (
                 <div className="px-4 pb-4 text-sm text-gray-300 leading-relaxed whitespace-pre-line max-h-96 overflow-y-auto">
-                  {reportCache[reportLang]}
+                  {tr(reportCache[reportLang])}
                   {reportLoading && <span className="inline-block w-2 h-4 bg-emerald-400 ml-0.5 animate-pulse align-middle" />}
                 </div>
               )}
