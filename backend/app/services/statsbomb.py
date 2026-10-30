@@ -1,5 +1,6 @@
 import json
 import os
+import unicodedata
 from functools import lru_cache
 from pathlib import Path
 
@@ -223,6 +224,11 @@ def _build_player_index():
     return df
 
 
+def _normalize_search_text(text: str) -> str:
+    normalized = unicodedata.normalize("NFKD", text.casefold())
+    return "".join(char for char in normalized if not unicodedata.combining(char))
+
+
 def search_players(query: str = "", limit: int = 100) -> pd.DataFrame:
     cached = _load_cached("players_index")
     if cached is not None and len(cached) > 100:
@@ -232,6 +238,8 @@ def search_players(query: str = "", limit: int = 100) -> pd.DataFrame:
             _cache_path("players_index").unlink(missing_ok=True)
         df = _build_player_index()
     if query:
-        q = query.replace("ue", "ü").replace("oe", "ö").replace("ae", "ä")
-        df = df[df["player_name"].str.contains(q, case=False, na=False)]
+        q = _normalize_search_text(query.strip())
+        names = df["player_name"].fillna("").map(_normalize_search_text)
+        df = df[names.str.contains(q, regex=False, na=False)].drop_duplicates("player_id")
+        return df.head(limit)
     return df.head(limit)
