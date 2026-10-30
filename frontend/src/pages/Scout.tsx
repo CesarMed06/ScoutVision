@@ -246,7 +246,7 @@ export default function Scout() {
                 <div className="flex items-start gap-3">
                   <div className="w-10 h-10 rounded-full bg-gray-800 shrink-0 overflow-hidden">
                     {photos[p.player_id] ? (
-                      <img src={photos[p.player_id]!} alt={p.player_name} className="w-full h-full object-cover" />
+                      <img src={photos[p.player_id]!} alt={p.player_name} onError={() => setPhotos(current => ({ ...current, [p.player_id]: null }))} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <ImageIcon className="w-5 h-5 text-gray-500" />

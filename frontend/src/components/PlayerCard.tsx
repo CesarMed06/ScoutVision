@@ -20,7 +20,7 @@ export default function PlayerCard({ player }: { player: PlayerSummary }) {
     >
       <div className="flex items-start gap-3">
         {photo ? (
-          <img src={photo} alt={player.player_name} className="w-10 h-10 rounded-full object-cover shrink-0 border border-gray-700" />
+          <img src={photo} alt={player.player_name} onError={() => setPhoto(null)} className="w-10 h-10 rounded-full object-cover shrink-0 border border-gray-700" />
         ) : (
           <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center shrink-0 group-hover:bg-emerald-900/30 transition-colors">
             <ImageIcon className="w-5 h-5 text-gray-400 group-hover:text-emerald-400 transition-colors" />

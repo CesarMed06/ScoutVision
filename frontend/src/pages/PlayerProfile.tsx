@@ -224,7 +224,7 @@ export default function PlayerProfile() {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
       <div className="flex items-center gap-4 mb-8">
         {photoUrl ? (
-          <img src={photoUrl} alt={data.player_name} className="w-14 h-14 rounded-full object-cover border-2 border-emerald-500/50" />
+          <img src={photoUrl} alt={data.player_name} onError={() => setPhotoUrl(null)} className="w-14 h-14 rounded-full object-cover border-2 border-emerald-500/50" />
         ) : (
           <div className="w-14 h-14 rounded-full bg-emerald-900/30 border border-emerald-500/30 flex items-center justify-center">
             <ImageIcon className="w-7 h-7 text-emerald-400" />
