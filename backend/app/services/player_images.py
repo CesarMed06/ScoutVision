@@ -4,16 +4,18 @@ import re
 import threading
 import unicodedata
 import urllib.parse
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 from app.core.config import settings
-from app.services.statsbomb import DATA_DIR
+from app.services.statsbomb import BACKEND_ROOT
 
 logger = logging.getLogger(__name__)
 
-CACHE_FILE = DATA_DIR / "player_images_cache.json"
+CACHE_FILE = BACKEND_ROOT / "data" / "player_images_cache.json"
+SAMPLE_CACHE_FILE = BACKEND_ROOT / "sample_data" / "player_images_cache.json"
 CACHE_LOCK = threading.Lock()
 
+HEADERS = {"User-Agent": "ScoutVision/1.0 (+https://github.com/)"}
 SPORTSDB_URL = "https://www.thesportsdb.com/api/v1/json/3/searchplayers.php?p="
 
 
@@ -34,6 +36,15 @@ def _load_cache():
 
 def _save_cache(cache):
     with CACHE_LOCK:
+        if CACHE_FILE.exists():
+            try:
+                with open(CACHE_FILE, "r", encoding="utf-8") as f:
+                    current = json.load(f)
+                current.update(cache)
+                cache = current
+            except (OSError, json.JSONDecodeError):
+                pass
+        CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
         tmp = CACHE_FILE.with_suffix(".tmp")
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(cache, f)
@@ -52,8 +63,8 @@ def _strip_accents(name: str) -> str:
 def _sportsdb_search(name: str) -> str | None:
     """Search TheSportsDB for a player by name. Returns thumbnail URL or None."""
     try:
-        url = SPORTSDB_URL + name.replace(" ", "%20")
-        with urlopen(url, timeout=5) as res:
+        url = SPORTSDB_URL + urllib.parse.quote(name)
+        with urlopen(Request(url, headers=HEADERS), timeout=5) as res:
             data = json.loads(res.read().decode())
         players = data.get("player", [])
         if players:
@@ -111,7 +122,7 @@ def _wikipedia_search(name: str) -> str | None:
             f"&srsearch={urllib.parse.quote(name + ' footballer')}"
             "&format=json&srlimit=1"
         )
-        with urlopen(search_url, timeout=5) as res:
+        with urlopen(Request(search_url, headers=HEADERS), timeout=5) as res:
             data = json.loads(res.read().decode())
         results = data.get("query", {}).get("search", [])
         if not results:
@@ -121,7 +132,7 @@ def _wikipedia_search(name: str) -> str | None:
             f"https://en.wikipedia.org/w/api.php?action=query&titles={title}"
             "&prop=pageimages&format=json&pithumbsize=200"
         )
-        with urlopen(img_url, timeout=5) as res:
+        with urlopen(Request(img_url, headers=HEADERS), timeout=5) as res:
             data = json.loads(res.read().decode())
         for page in data.get("query", {}).get("pages", {}).values():
             thumb = page.get("thumbnail", {}).get("source")
@@ -138,12 +149,22 @@ def _ui_avatar_url(player_name: str) -> str:
     return f"https://ui-avatars.com/api/?name={initials}&background=064e3b&color=34d399&size=200&bold=true&font-size=0.4"
 
 
+def _load_sample_cache():
+    if not SAMPLE_CACHE_FILE.exists():
+        return {}
+    try:
+        with open(SAMPLE_CACHE_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
 def get_player_image(player_name: str) -> str | None:
-    if settings.demo_mode:
-        return None
     cache = _load_cache()
     if player_name in cache and cache[player_name].get("thumb"):
         return cache[player_name]["thumb"]
+    if settings.demo_mode:
+        return _load_sample_cache().get(player_name, {}).get("thumb")
 
     thumb = _search_name_variations(player_name)
     if not thumb:

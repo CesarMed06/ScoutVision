@@ -37,27 +37,34 @@ export default function Players() {
   }, [])
 
   useEffect(() => {
+    let cancelled = false
     if (!query.trim()) {
       setResults([])
+      setLoading(false)
       return
     }
     const t = setTimeout(async () => {
       setLoading(true)
       try {
         const data = await searchPlayers(query)
-        const seen = new Set<number>()
-        const unique = data.filter(p => {
-          if (seen.has(p.player_id)) return false
-          seen.add(p.player_id)
-          return true
-        })
-        setResults(unique)
+        if (!cancelled) {
+          const seen = new Set<number>()
+          setResults(data.filter(p => {
+            if (seen.has(p.player_id)) return false
+            seen.add(p.player_id)
+            return true
+          }))
+        }
       } catch {
-        setResults([])
+        if (!cancelled) setResults([])
+      } finally {
+        if (!cancelled) setLoading(false)
       }
-      setLoading(false)
     }, 300)
-    return () => clearTimeout(t)
+    return () => {
+      cancelled = true
+      clearTimeout(t)
+    }
   }, [query])
 
   return (

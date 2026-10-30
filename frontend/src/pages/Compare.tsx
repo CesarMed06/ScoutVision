@@ -83,7 +83,7 @@ function PlayerSlot({ player, slot, loading, error, onSearch, onChange }: {
           </button>
           <Link to={`/players/${player.player_id}`} className="flex items-center gap-3">
             {photo ? (
-              <img src={photo} alt={player.player_name} className="w-12 h-12 rounded-full object-cover shrink-0 border border-gray-700" />
+              <img src={photo} alt={player.player_name} onError={() => setPhoto(null)} className="w-12 h-12 rounded-full object-cover shrink-0 border border-gray-700" />
             ) : (
               <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center shrink-0">
                 <ImageIcon className="w-6 h-6 text-gray-500" />
@@ -203,14 +203,21 @@ export default function Compare() {
 
   // Search effect
   useEffect(() => {
+    let cancelled = false
     if (!searchQ.trim() || !showSearchModal) { setSearchR([]); return }
     const t = setTimeout(() => {
       searchPlayers(searchQ).then((r) => {
+        if (cancelled) return
         const seen = new Set<number>()
         setSearchR(r.filter(p => { if (seen.has(p.player_id)) return false; seen.add(p.player_id); return true }))
-      }).catch(() => {})
+      }).catch(() => {
+        if (!cancelled) setSearchR([])
+      })
     }, 300)
-    return () => clearTimeout(t)
+    return () => {
+      cancelled = true
+      clearTimeout(t)
+    }
   }, [searchQ, showSearchModal])
 
   function selectPlayer(slot: 'a' | 'b', id: number) {
