@@ -21,7 +21,7 @@ def scout_players(
         if not totals:
             continue
 
-        minutes = totals.get("minutes", 0) or 1
+        minutes = totals.get("minutes", 0) or 0
         p90 = lambda v: round(v / minutes * 90, 2) if minutes > 0 else 0
 
         row = {
@@ -42,7 +42,6 @@ def scout_players(
             "aerial_pct": round(totals.get("aerial_duels_won", 0) / (totals.get("aerial_duels", 0) or 1) * 100, 1),
         }
 
-        # Apply filters
         if row["goals_per_90"] < min_goals_per_90: continue
         if row["xg_per_90"] < min_xg_per_90: continue
         if row["xa_per_90"] < min_xa_per_90: continue
@@ -55,8 +54,7 @@ def scout_players(
 
         results.append(row)
 
-    # Sort
-    reverse = sort_dir == "desc"
-    results.sort(key=lambda x: x.get(sort_by, 0), reverse=reverse)
+    results.sort(key=lambda x: x["player_name"])
+    results.sort(key=lambda x: x[sort_by], reverse=sort_dir == "desc")
 
     return results[:limit]

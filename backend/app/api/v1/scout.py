@@ -1,8 +1,22 @@
+from typing import Literal
+
 from fastapi import APIRouter, Query
 
 from app.services.scout import scout_players
 
 router = APIRouter()
+
+SortField = Literal[
+    "goals_per_90",
+    "xg_per_90",
+    "xa_per_90",
+    "key_passes_per_90",
+    "tackles_per_90",
+    "pressures_per_90",
+    "pass_pct",
+    "dribble_pct",
+    "aerial_pct",
+]
 
 
 @router.get("/players/search/advanced")
@@ -16,9 +30,8 @@ def advanced_scout(
     min_dribble_pct: float = Query(0, ge=0, le=100),
     min_aerial_pct: float = Query(0, ge=0, le=100),
     min_pressures_per_90: float = Query(0, ge=0),
-    max_age: int = Query(0, ge=0),
-    sort_by: str = Query("goals_per_90"),
-    sort_dir: str = Query("desc", regex="^(asc|desc)$"),
+    sort_by: SortField = "goals_per_90",
+    sort_dir: str = Query("desc", pattern="^(asc|desc)$"),
     limit: int = Query(50, ge=1, le=200),
 ):
     return scout_players(
