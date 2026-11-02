@@ -94,6 +94,7 @@ export default function Scout() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [photos, setPhotos] = useState<Record<number, string | null>>({})
   const [page, setPage] = useState(1)
+  const [error, setError] = useState(false)
 
   function buildQuery() {
     const params = new URLSearchParams()
@@ -109,31 +110,35 @@ export default function Scout() {
   async function doSearch() {
     setLoading(true)
     setSearched(true)
+    setError(false)
     try {
       const data = await scoutSearch(buildQuery())
       setResults(data)
+      setPhotos({})
       setPage(1)
     } catch {
       setResults([])
+      setError(true)
     }
     setLoading(false)
   }
 
   useEffect(() => {
     if (results.length === 0) return
-    const ids = results.map(p => p.player_id)
-    const photoPromises = ids.map(id => {
-      const p = results.find(r => r.player_id === id)!
-      return getPlayerPhoto(p.player_name)
-        .then(res => ({ id, url: res.photo_url }))
-        .catch(() => ({ id, url: null }))
-    })
-    Promise.all(photoPromises).then(photoResults => {
+    let cancelled = false
+    const visible = results.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+    Promise.all(visible.map(p =>
+      getPlayerPhoto(p.player_name)
+        .then(res => ({ id: p.player_id, url: res.photo_url }))
+        .catch(() => ({ id: p.player_id, url: null }))
+    )).then(photoResults => {
+      if (cancelled) return
       const map: Record<number, string | null> = {}
       photoResults.forEach(r => { map[r.id] = r.url })
-      setPhotos(map)
+      setPhotos(prev => ({ ...prev, ...map }))
     })
-  }, [results])
+    return () => { cancelled = true }
+  }, [results, page])
 
   const activeCount = Object.values(filters).filter(v => v > 0).length
   const totalPages = Math.ceil(results.length / PAGE_SIZE)
@@ -146,7 +151,7 @@ export default function Scout() {
         <h1 className="text-2xl font-bold text-white">{t('Scout Filter')}</h1>
         {activeCount > 0 && (
           <span className="px-2 py-0.5 text-xs bg-emerald-500/20 text-emerald-400 rounded-full">
-            {activeCount} {t('active')}
+            {activeCount === 1 ? t('1 active filter') : `${activeCount} ${t('active')}`}
           </span>
         )}
       </div>
@@ -222,7 +227,14 @@ export default function Scout() {
         </div>
       )}
 
-      {!loading && searched && results.length === 0 && (
+      {!loading && searched && error && (
+        <div className="text-center py-16">
+          <p className="text-red-400 text-lg">{t('Search failed')}</p>
+          <p className="text-gray-600 text-sm mt-1">{t('Check the connection and try again')}</p>
+        </div>
+      )}
+
+      {!loading && searched && !error && results.length === 0 && (
         <div className="text-center py-16">
           <Target className="w-12 h-12 text-gray-700 mx-auto mb-3" />
           <p className="text-gray-500 text-lg">{t('No players match your filters')}</p>
@@ -234,6 +246,7 @@ export default function Scout() {
         <>
           <p className="text-gray-400 text-sm mb-3">
             {results.length} {t('players found')}
+            {results.length >= 50 && <span className="text-gray-600"> · {t('Top 50 shown')}</span>}
             {totalPages > 1 && <span className="text-gray-600"> · {t('Page')} {page}/{totalPages}</span>}
           </p>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -269,26 +282,28 @@ export default function Scout() {
             ))}
           </div>
           {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-3 mt-6">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                {t('Previous')}
-              </button>
-              <span className="text-xs text-gray-500">
-                {t('Page')} {page} {t('of')} {totalPages}
-              </span>
-              <button
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
-              >
-                {t('Next')}
-                <ChevronRight className="w-4 h-4" />
-              </button>
+            <div className="flex justify-center mt-6">
+              <div className="inline-flex items-center rounded-lg border border-gray-700 bg-gray-800 overflow-hidden">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="h-9 px-3 inline-flex items-center gap-1.5 text-sm leading-none text-gray-300 hover:bg-gray-700 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4 shrink-0 relative top-px" />
+                  {t('Previous')}
+                </button>
+                <span className="h-9 px-3 inline-flex items-center text-sm leading-none text-gray-400 tabular-nums border-x border-gray-700 bg-gray-900/60">
+                  {t('Page')} {page} {t('of')} {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="h-9 px-3 inline-flex items-center gap-1.5 text-sm leading-none text-gray-300 hover:bg-gray-700 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
+                >
+                  {t('Next')}
+                  <ChevronRight className="w-4 h-4 shrink-0 relative top-px" />
+                </button>
+              </div>
             </div>
           )}
         </>
