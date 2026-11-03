@@ -10,6 +10,29 @@ METRICS_DIR = DATA_DIR
 FINAL_THIRD_X = 80
 MIN_PROGRESSIVE_DIST = 10
 
+PCT_ATTEMPT_SOURCES: dict[str, str] = {
+    "shot_accuracy": "shots",
+    "pass_completion_pct": "passes",
+    "dribble_success_pct": "dribbles",
+    "duel_success_pct": "duels",
+    "tackle_success_pct": "tackles",
+    "aerial_success_pct": "aerial_duels",
+    "passes_into_final_third_pct": "passes_into_final_third",
+}
+
+
+def percentage(numerator: float, denominator: float, digits: int = 1) -> float | None:
+    if not denominator:
+        return None
+    return round(numerator / denominator * 100, digits)
+
+
+def _normalize_pct_fields(row: dict) -> dict:
+    for pct_key, attempts_key in PCT_ATTEMPT_SOURCES.items():
+        if pct_key in row and not row.get(attempts_key):
+            row[pct_key] = None
+    return row
+
 
 def _event_minute(event: pd.Series) -> float | None:
     minute = event.get("minute")
@@ -135,7 +158,7 @@ def compute_player_metrics(events: pd.DataFrame, player: str) -> dict:
     num_passes = len(passes)
     pass_outcome = _col(passes, "pass_outcome")
     num_completed = len(passes[pass_outcome.isna()])
-    pass_pct = round(num_completed / num_passes * 100, 1) if num_passes > 0 else 0
+    pass_pct = percentage(num_completed, num_passes)
 
     shot_assist = _col(passes, "pass_shot_assist").eq(True)
     key_passes = int(shot_assist.sum())
@@ -166,6 +189,7 @@ def compute_player_metrics(events: pd.DataFrame, player: str) -> dict:
 
     progressive_passes = 0
     passes_into_final_third = 0
+    passes_into_final_third_completed = 0
     if "location" in passes.columns and "pass_end_location" in passes.columns:
         locations = passes["location"]
         end_locations = passes["pass_end_location"]
@@ -182,6 +206,8 @@ def compute_player_metrics(events: pd.DataFrame, player: str) -> dict:
                 continue
             if end_x > FINAL_THIRD_X:
                 passes_into_final_third += 1
+                if pd.isna(outcome):
+                    passes_into_final_third_completed += 1
             if pd.notna(outcome) or end_x <= start_x:
                 continue
             distance = end_x - start_x
@@ -202,11 +228,7 @@ def compute_player_metrics(events: pd.DataFrame, player: str) -> dict:
     num_dribbles = len(dribbles)
     drib_outcome = _col(dribbles, "dribble_outcome")
     completed_dribbles = len(dribbles[drib_outcome == "Complete"])
-    dribble_pct = (
-        round(completed_dribbles / num_dribbles * 100, 1)
-        if num_dribbles > 0
-        else 0
-    )
+    dribble_pct = percentage(completed_dribbles, num_dribbles)
 
     # Vectorized progressive carries (avoids O(n) iterrows)
     num_carries = len(carries)
@@ -225,21 +247,21 @@ def compute_player_metrics(events: pd.DataFrame, player: str) -> dict:
     duel_outcome = _col(duels, "duel_outcome")
     won_conditions = duel_outcome.isin(["Won", "Success In Play", "Success Out"])
     duels_won = len(duels[won_conditions])
-    duel_pct = round(duels_won / num_duels * 100, 1) if num_duels > 0 else 0
+    duel_pct = percentage(duels_won, num_duels)
 
     duel_type = _col(duels, "duel_type")
     tackles = len(duels[duel_type == "Tackle"])
     tackles_won = len(
         duels[(duel_type == "Tackle") & won_conditions]
     )
-    tackle_pct = round(tackles_won / tackles * 100, 1) if tackles > 0 else 0
+    tackle_pct = percentage(tackles_won, tackles)
 
     aerial_mask = duel_type.astype("string").str.contains("Aerial", case=False, na=False)
     aerial_duels = len(duels[aerial_mask])
     aerial_won = len(
         duels[aerial_mask & duel_outcome.isin(["Won", "Success Out"])]
     )
-    aerial_pct = round(aerial_won / aerial_duels * 100, 1) if aerial_duels > 0 else 0
+    aerial_pct = percentage(aerial_won, aerial_duels)
 
     return {
         "player": player,
@@ -248,7 +270,7 @@ def compute_player_metrics(events: pd.DataFrame, player: str) -> dict:
         "assists": int(assists),
         "shots": int(num_shots),
         "shots_on_target": int(shots_ot),
-        "shot_accuracy": round(shots_ot / num_shots * 100, 1) if num_shots > 0 else 0,
+        "shot_accuracy": percentage(shots_ot, num_shots),
         "xg": xg,
         "xg_per_90": p90(xg),
         "xa": xa,
@@ -260,6 +282,10 @@ def compute_player_metrics(events: pd.DataFrame, player: str) -> dict:
         "key_passes": int(key_passes),
         "progressive_passes": int(progressive_passes),
         "passes_into_final_third": int(passes_into_final_third),
+        "passes_into_final_third_completed": int(passes_into_final_third_completed),
+        "passes_into_final_third_pct": percentage(
+            passes_into_final_third_completed, passes_into_final_third
+        ),
         "crosses": int(crosses),
         "through_balls": int(through_balls),
         "switches": int(switches),
@@ -316,7 +342,7 @@ def get_player_metrics_across_matches(player_id: int) -> list[dict]:
             with open(cache_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
             if not settings.demo_mode or data:
-                return data
+                return [_normalize_pct_fields(dict(row)) for row in data]
         except (json.JSONDecodeError, IOError):
             cache_path.unlink(missing_ok=True)
 

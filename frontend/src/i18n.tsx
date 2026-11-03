@@ -42,6 +42,7 @@ const translations: Record<string, string> = {
   Goals: 'Goles', Assists: 'Asistencias', Shots: 'Tiros', 'Shots On Target': 'Tiros a puerta',
   Passes: 'Pases', 'Passes Completed': 'Pases completados', 'Key Passes': 'Pases clave',
   'Prog. Passes': 'Pases prog.', 'Final Third Passes': 'Pases al último tercio',
+  'Final Third Completed': 'Completados al último tercio', 'Final Third %': 'Precisión al último tercio',
   Dribbles: 'Regates', 'Dribbles Completed': 'Regates completados', Carries: 'Conducciones', 'Prog. Carries': 'Conducciones prog.',
   Tackles: 'Entradas', 'Tackles Won': 'Entradas ganadas', Interceptions: 'Intercepciones', Pressures: 'Presiones',
   'Ball Recoveries': 'Recuperaciones de balón',

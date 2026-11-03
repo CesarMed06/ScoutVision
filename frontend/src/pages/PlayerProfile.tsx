@@ -9,6 +9,7 @@ import { useLanguage } from '../i18n'
 const METRIC_LABELS: Record<string, string> = {
   goals: 'Goals', shots: 'Shots', xg: 'xG', assists: 'Assists', xa: 'xA',
   key_passes: 'Key Passes', progressive_passes: 'Prog. Passes', passes_into_final_third: 'Final Third Passes',
+  passes_into_final_third_completed: 'Final Third Completed', passes_into_final_third_pct: 'Final Third %',
   dribbles: 'Dribbles', carries: 'Carries', progressive_carries: 'Prog. Carries',
   tackles: 'Tackles', interceptions: 'Interceptions', pressures: 'Pressures',
   aerial_duels: 'Aerial Duels', duels: 'Duels',
@@ -201,11 +202,11 @@ export default function PlayerProfile() {
   })
 
   const attackKeys = ['goals', 'assists', 'shots', 'shots_on_target', 'xg', 'xa'] as const
-  const passingKeys = ['passes', 'passes_completed', 'key_passes', 'progressive_passes', 'passes_into_final_third'] as const
+  const passingKeys = ['passes', 'passes_completed', 'key_passes', 'progressive_passes', 'passes_into_final_third', 'passes_into_final_third_completed'] as const
   const dribbleKeys = ['dribbles', 'dribbles_completed', 'carries', 'progressive_carries'] as const
   const defenseKeys = ['tackles', 'tackles_won', 'interceptions', 'pressures', 'ball_recoveries'] as const
   const physicalKeys = ['aerial_duels', 'aerial_duels_won', 'duels', 'duels_won', 'fouls_won', 'fouls_committed'] as const
-  const pctKeys = ['pass_completion_pct', 'shot_accuracy', 'dribble_success_pct', 'duel_success_pct', 'tackle_success_pct', 'aerial_success_pct'] as const
+  const pctKeys = ['pass_completion_pct', 'shot_accuracy', 'dribble_success_pct', 'duel_success_pct', 'tackle_success_pct', 'aerial_success_pct', 'passes_into_final_third_pct'] as const
 
   function renderMetrics(keys: readonly string[]) {
     return keys.map((k) => (
@@ -213,8 +214,8 @@ export default function PlayerProfile() {
         <MetricCard
           key={k}
           label={tr(METRIC_LABELS[k] || k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()))}
-          value={(t[k] as number) || 0}
-          suffix={k.endsWith('_pct') ? '%' : ''}
+          value={t[k] === null || t[k] === undefined ? '—' : (t[k] as number)}
+          suffix={k.endsWith('_pct') && t[k] !== null && t[k] !== undefined ? '%' : ''}
         />
       ) : null
     ))

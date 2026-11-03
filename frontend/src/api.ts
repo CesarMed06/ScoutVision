@@ -54,38 +54,41 @@ export interface PlayerMetricsTotals {
   goals_per_90: number
   xg_per_90: number
   xa_per_90: number
-  shot_accuracy: number
+  shot_accuracy: number | null
   passes: number
   passes_completed: number
-  pass_completion_pct: number
+  pass_completion_pct: number | null
   key_passes: number
   progressive_passes: number
+  passes_into_final_third?: number
+  passes_into_final_third_completed?: number
+  passes_into_final_third_pct?: number | null
   dribbles: number
   dribbles_completed: number
-  dribble_success_pct: number
+  dribble_success_pct: number | null
   carries: number
   progressive_carries: number
   tackles: number
   tackles_won: number
-  tackle_success_pct: number
+  tackle_success_pct: number | null
   pressures: number
   interceptions: number
   duels: number
   duels_won: number
-  duel_success_pct: number
+  duel_success_pct: number | null
   aerial_duels: number
   aerial_duels_won: number
-  aerial_success_pct: number
+  aerial_success_pct: number | null
   fouls_committed: number
   fouls_won: number
-  [key: string]: number | string
+  [key: string]: number | string | null | undefined
 }
 
 export interface PlayerMetricsResponse {
   player_id: number
   player_name: string
   matches: number
-  match_details: Array<Record<string, number | string>>
+  match_details: Array<Record<string, number | string | null>>
   totals: PlayerMetricsTotals
 }
 
