@@ -5,7 +5,7 @@ import time
 from groq import Groq
 
 from app.core.config import settings
-from app.services.metrics import get_player_metrics_across_matches
+from app.services.metrics import get_player_metrics_across_matches, percentage
 
 logger = logging.getLogger(__name__)
 
@@ -156,18 +156,23 @@ def _compute_totals(metrics_data: list[dict]) -> dict:
     totals["tackles_per_90"] = p90(totals.get("tackles", 0))
     totals["pressures_per_90"] = p90(totals.get("pressures", 0))
 
-    shots = totals.get("shots", 0) or 1
-    totals["shot_accuracy"] = round(totals.get("shots_on_target", 0) / shots * 100, 1)
-    passes = totals.get("passes", 0) or 1
-    totals["pass_completion_pct"] = round(totals.get("passes_completed", 0) / passes * 100, 1)
-    dribbles = totals.get("dribbles", 0) or 1
-    totals["dribble_success_pct"] = round(totals.get("dribbles_completed", 0) / dribbles * 100, 1)
-    duels = totals.get("duels", 0) or 1
-    totals["duel_success_pct"] = round(totals.get("duels_won", 0) / duels * 100, 1)
-    tackles = totals.get("tackles", 0) or 1
-    totals["tackle_success_pct"] = round(totals.get("tackles_won", 0) / tackles * 100, 1)
-    aerials = totals.get("aerial_duels", 0) or 1
-    totals["aerial_success_pct"] = round(totals.get("aerial_duels_won", 0) / aerials * 100, 1)
+    shots = totals.get("shots", 0)
+    totals["shot_accuracy"] = percentage(totals.get("shots_on_target", 0), shots)
+    passes = totals.get("passes", 0)
+    totals["pass_completion_pct"] = percentage(totals.get("passes_completed", 0), passes)
+    dribbles = totals.get("dribbles", 0)
+    totals["dribble_success_pct"] = percentage(totals.get("dribbles_completed", 0), dribbles)
+    duels = totals.get("duels", 0)
+    totals["duel_success_pct"] = percentage(totals.get("duels_won", 0), duels)
+    tackles = totals.get("tackles", 0)
+    totals["tackle_success_pct"] = percentage(totals.get("tackles_won", 0), tackles)
+    aerials = totals.get("aerial_duels", 0)
+    totals["aerial_success_pct"] = percentage(totals.get("aerial_duels_won", 0), aerials)
+    if "passes_into_final_third_completed" in totals:
+        totals["passes_into_final_third_pct"] = percentage(
+            totals["passes_into_final_third_completed"],
+            totals.get("passes_into_final_third", 0),
+        )
     return totals
 
 

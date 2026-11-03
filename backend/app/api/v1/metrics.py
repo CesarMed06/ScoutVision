@@ -67,29 +67,25 @@ def _aggregate_totals(match_list: list[dict]) -> dict:
     totals["pressures_per_90"] = p90(totals.get("pressures", 0))
     totals["tackles_per_90"] = p90(totals.get("tackles", 0))
 
-    shots = totals.get("shots", 0) or 1
-    totals["shot_accuracy"] = round(
-        totals.get("shots_on_target", 0) / shots * 100, 1
+    pct = metrics_service.percentage
+    totals["shot_accuracy"] = pct(totals.get("shots_on_target", 0), totals.get("shots", 0))
+    totals["pass_completion_pct"] = pct(
+        totals.get("passes_completed", 0), totals.get("passes", 0)
     )
-    passes = totals.get("passes", 0) or 1
-    totals["pass_completion_pct"] = round(
-        totals.get("passes_completed", 0) / passes * 100, 1
+    totals["dribble_success_pct"] = pct(
+        totals.get("dribbles_completed", 0), totals.get("dribbles", 0)
     )
-    dribbles = totals.get("dribbles", 0) or 1
-    totals["dribble_success_pct"] = round(
-        totals.get("dribbles_completed", 0) / dribbles * 100, 1
+    totals["duel_success_pct"] = pct(totals.get("duels_won", 0), totals.get("duels", 0))
+    totals["tackle_success_pct"] = pct(
+        totals.get("tackles_won", 0), totals.get("tackles", 0)
     )
-    duels = totals.get("duels", 0) or 1
-    totals["duel_success_pct"] = round(
-        totals.get("duels_won", 0) / duels * 100, 1
+    totals["aerial_success_pct"] = pct(
+        totals.get("aerial_duels_won", 0), totals.get("aerial_duels", 0)
     )
-    tackles = totals.get("tackles", 0) or 1
-    totals["tackle_success_pct"] = round(
-        totals.get("tackles_won", 0) / tackles * 100, 1
-    )
-    aerials = totals.get("aerial_duels", 0) or 1
-    totals["aerial_success_pct"] = round(
-        totals.get("aerial_duels_won", 0) / aerials * 100, 1
-    )
+    if "passes_into_final_third_completed" in totals:
+        totals["passes_into_final_third_pct"] = pct(
+            totals["passes_into_final_third_completed"],
+            totals.get("passes_into_final_third", 0),
+        )
 
     return totals

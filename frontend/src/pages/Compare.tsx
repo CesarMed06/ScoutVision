@@ -127,27 +127,29 @@ function PlayerSlot({ player, slot, loading, error, onSearch, onChange }: {
 }
 
 function CompareRow({ label, valA, valB, suffix }: {
-  label: string; valA: number; valB: number; suffix: string
+  label: string; valA: number | null; valB: number | null; suffix: string
 }) {
   const fmt = (v: number) => v % 1 === 0 ? String(v) : v.toFixed(2)
-  // Minimum 5% threshold before showing green (avoids false positives)
-  const diff = Math.abs(valA - valB)
-  const maxVal = Math.max(Math.abs(valA), Math.abs(valB), 0.001)
+  // null = the player had no attempts, so the rate does not exist (not 0%).
+  const a = valA ?? 0
+  const b = valB ?? 0
+  const diff = Math.abs(a - b)
+  const maxVal = Math.max(Math.abs(a), Math.abs(b), 0.001)
   const pctDiff = diff / maxVal
-  const significant = pctDiff > 0.05
+  const significant = valA !== null && valB !== null && pctDiff > 0.05
 
-  const aBetter = significant && valA > valB
-  const bBetter = significant && valB > valA
+  const aBetter = significant && a > b
+  const bBetter = significant && b > a
   const equal = !aBetter && !bBetter
 
   return (
     <tr className="border-b border-gray-800/50 text-sm hover:bg-gray-800/20 transition-colors">
       <td className="py-2 pr-3 text-gray-400 text-xs font-medium">{label}</td>
       <td className={`py-2 px-3 text-right font-mono ${aBetter ? 'text-emerald-400 font-semibold' : equal ? 'text-gray-300' : 'text-gray-500'}`}>
-        {fmt(valA)}{suffix}
+        {valA === null ? '—' : `${fmt(valA)}${suffix}`}
       </td>
       <td className={`py-2 px-3 text-right font-mono ${bBetter ? 'text-emerald-400 font-semibold' : equal ? 'text-gray-300' : 'text-gray-500'}`}>
-        {fmt(valB)}{suffix}
+        {valB === null ? '—' : `${fmt(valB)}${suffix}`}
       </td>
     </tr>
   )
@@ -250,8 +252,10 @@ export default function Compare() {
       })
     : []
 
-  function getField(totals: Record<string, unknown>, key: string): number {
-    let v = totals[key] as number | undefined
+  function getField(totals: Record<string, unknown>, key: string): number | null {
+    const raw = totals[key]
+    if (raw === null) return null
+    const v = raw as number | undefined
     if (v !== undefined) return v
     if (key.endsWith('_per_90')) {
       const rawKey = key.replace('_per_90', '')
