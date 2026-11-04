@@ -239,10 +239,12 @@ export default function Compare() {
   const showFullComparison = !!(playerA && playerB)
 
   // Radar data: Player A = "A" (green), Global Average = "Avg" (blue dashed)
-  const radarData = (playerA?.totals && averages)
+  const averagesReady = !!(averages && (averages.players_sampled || 0) > 0)
+  const radarData = (playerA?.totals && averagesReady)
     ? RADAR_METRICS.map((m) => {
         const valA = (playerA.totals[m.key] as number) || 0
-        const avgVal = (averages[m.key as keyof AveragesResponse] as number) || 0
+        const rawAvg = averages![m.key as keyof AveragesResponse]
+        const avgVal = typeof rawAvg === 'number' ? rawAvg : 0
         const maxVal = m.key.includes('pct') ? 100 : Math.max(valA, avgVal * 2, 5)
         return {
           metric: t(m.label),
@@ -355,6 +357,11 @@ export default function Compare() {
                 <Loader2 className="w-5 h-5 animate-spin" />
                 <span className="text-sm">{t('Computing league averages... (first load ~15s)')}</span>
               </div>
+            </div>
+          ) : !averagesReady ? (
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-8">
+              <h3 className="text-white font-semibold mb-1">{t('Comparison Radar')}</h3>
+              <p className="text-sm text-gray-500 text-center py-8">{t('Not enough data for league averages yet')}</p>
             </div>
           ) : radarData.length > 0 ? (
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-8">

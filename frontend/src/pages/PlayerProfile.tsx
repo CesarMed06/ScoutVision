@@ -124,6 +124,7 @@ export default function PlayerProfile() {
   const [error, setError] = useState('')
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
   const [similarPlayers, setSimilarPlayers] = useState<SimilarPlayer[]>([])
+  const [similarPending, setSimilarPending] = useState(false)
   const [averages, setAverages] = useState<AveragesResponse | null>(null)
   const [vizMatch, setVizMatch] = useState<{ matchId: number; team: string } | null>(null)
 
@@ -134,6 +135,7 @@ export default function PlayerProfile() {
     setShowReport(false)
     setPhotoUrl(null)
     setSimilarPlayers([])
+    setSimilarPending(false)
     setAverages(null)
     setVizMatch(null)
 
@@ -145,7 +147,9 @@ export default function PlayerProfile() {
         setShowReport(false)
         const name = d.player_name
         getPlayerPhoto(name).then((p) => setPhotoUrl(p.photo_url)).catch(() => {})
-        getSimilarPlayers(Number(playerId)).then(setSimilarPlayers).catch(() => {})
+        getSimilarPlayers(Number(playerId))
+          .then(setSimilarPlayers)
+          .catch(() => setSimilarPending(true))
         getPlayerAverages(name).then(setAverages).catch(() => {})
       })
       .catch(() => { setError('Player not found'); setLoading(false) })
@@ -190,14 +194,16 @@ export default function PlayerProfile() {
   const t = data.totals as PlayerMetricsTotals
   const matchCount = data.match_details.length
 
+  const averagesReady = !!(averages && (averages.players_sampled || 0) > 0)
   const radarData = RADAR_METRICS.map((m) => {
     const val = (t[m.key] as number) || 0
-    const avgVal = averages ? (averages[m.key as keyof AveragesResponse] as number) || 0 : 0
-    const maxVal = m.key.includes('pct') ? 100 : Math.max(avgVal * 3, val * 1.5, 0.5)
+    const rawAvg = averages ? averages[m.key as keyof AveragesResponse] : null
+    const avgVal = typeof rawAvg === 'number' ? rawAvg : null
+    const maxVal = m.key.includes('pct') ? 100 : Math.max((avgVal || 0) * 3, val * 1.5, 0.5)
     return {
       metric: tr(m.label),
       value: Math.min(100, val / maxVal * 100),
-      avg: averages ? Math.min(100, avgVal / maxVal * 100) : undefined,
+      avg: avgVal === null ? undefined : Math.min(100, avgVal / maxVal * 100),
     }
   })
 
@@ -274,8 +280,8 @@ export default function PlayerProfile() {
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-4">
             <h3 className="text-white font-semibold mb-2">{tr('Per 90 vs Average')}</h3>
             <MetricRadar data={radarData} />
-            {averages && (
-              <p className="text-xs text-gray-500 text-center mt-1">{tr('Avg from')} {averages.players_sampled || '?'} {tr('players')}</p>
+            {averagesReady && (
+              <p className="text-xs text-gray-500 text-center mt-1">{tr('Avg from')} {averages!.players_sampled} {tr('players')}</p>
             )}
           </div>
 
@@ -313,6 +319,16 @@ export default function PlayerProfile() {
             </div>
           )}
 
+          {similarPlayers.length === 0 && similarPending && (
+            <div className="mt-4 bg-gray-900 border border-gray-800 rounded-xl p-4">
+              <h3 className="text-white font-semibold mb-2 flex items-center gap-2">
+                <Users className="w-4 h-4 text-emerald-400" />
+                {tr('Similar Players')}
+              </h3>
+              <p className="text-sm text-gray-500">{tr('Computing similar players...')}</p>
+            </div>
+          )}
+
           {similarPlayers.length > 0 && (
             <div className="mt-4 bg-gray-900 border border-gray-800 rounded-xl p-4">
               <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
@@ -327,7 +343,7 @@ export default function PlayerProfile() {
                       className="flex-1 text-sm"
                     >
                       <span className="text-white">{p.player_name}</span>
-                      <span className="text-gray-500 ml-2">{(p.similarity * 100).toFixed(0)}% {tr('match')}</span>
+                      <span className="text-gray-500 ml-2">{(p.similarity * 100).toFixed(1)}% {tr('match')}</span>
                     </Link>
                     <Link
                       to={`/compare?a=${playerId}&b=${p.player_id}`}

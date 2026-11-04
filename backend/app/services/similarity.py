@@ -20,9 +20,19 @@ METRIC_KEYS = [
     "aerial_success_pct", "pressures_per_90",
 ]
 
+MIN_MINUTES = 90
+
 # In-memory vector database: {player_id: {"vector": [...], "name": str, "totals": {...}, "player_info": {...}}}
 VECTOR_DB: dict[int, dict] = {}
 _VECTOR_DB_INITIALIZED = False
+
+
+def vector_db_ready() -> bool:
+    return _VECTOR_DB_INITIALIZED
+
+
+def _has_enough_minutes(totals: dict) -> bool:
+    return (totals.get("minutes") or 0) >= MIN_MINUTES
 
 
 def _load_vector_db() -> bool:
@@ -120,7 +130,11 @@ def init_vector_db(max_players: int = 2000):
             metrics = get_player_metrics_across_matches(int(pid))
             if metrics:
                 totals = _accumulate_totals(metrics)
+                if not _has_enough_minutes(totals):
+                    continue
                 vec = _compute_vector_from_totals(totals)
+                if not any(vec):
+                    continue
                 VECTOR_DB[int(pid)] = {
                     "vector": vec,
                     "name": metrics[0]["player"],
@@ -146,37 +160,55 @@ def init_vector_db(max_players: int = 2000):
         _save_vector_db()
 
 
+def _standardise(matrix: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    mean = matrix.mean(axis=0)
+    std = matrix.std(axis=0)
+    std[std == 0] = 1.0
+    return mean, std
+
+
 def get_similar_players(player_id: int, top_n: int = 10, position_filter: str | None = None) -> list[dict]:
     # Don't block the request thread — return empty if DB isn't ready yet (it builds in background)
     if not _VECTOR_DB_INITIALIZED:
         logger.info("Vector DB not yet initialized, returning empty similarity results")
         return []
-    
+
     target_metrics = get_player_metrics_across_matches(player_id)
     if not target_metrics:
         return []
-    target_vec = np.array(_compute_vector(target_metrics)).reshape(1, -1)
-    
+    target_vec = np.array(_compute_vector(target_metrics), dtype=float)
+
+    pids = [pid for pid in VECTOR_DB if pid != player_id]
+    if not pids:
+        return []
+    matrix = np.array([VECTOR_DB[pid]["vector"] for pid in pids], dtype=float)
+
+    # Every metric is non-negative, so raw cosine sits at 0.99 for almost any pair.
+    # Comparing standardised profiles spreads the scores out and keeps the ranking useful.
+    mean, std = _standardise(matrix)
+    target_z = (target_vec - mean) / std
+    if np.linalg.norm(target_z) == 0:
+        return []
+
+    sims = cosine_similarity(target_z.reshape(1, -1), (matrix - mean) / std)[0]
+
     results = []
-    for pid, data in VECTOR_DB.items():
-        if pid == player_id:
+    for pid, sim in zip(pids, sims):
+        data = VECTOR_DB[pid]
+        if not _has_enough_minutes(data.get("totals", {})):
             continue
         if position_filter:
             player_pos = data.get("player_info", {}).get("position", "")
             if not player_pos or position_filter.lower() not in player_pos.lower():
                 continue
-        vec = np.array(data["vector"]).reshape(1, -1)
-        if np.linalg.norm(vec) == 0:
-            continue
-        sim = cosine_similarity(target_vec, vec)[0][0]
         if np.isnan(sim):
             continue
         results.append({
             "player_id": pid,
             "player_name": data["name"],
-            "similarity": round(float(sim), 4),
+            "similarity": round(max(float(sim), 0.0), 4),
         })
-    
+
     results.sort(key=lambda x: x["similarity"], reverse=True)
     return results[:top_n]
 
@@ -191,12 +223,10 @@ PCT_KEYS = ["pass_completion_pct", "aerial_success_pct"]
 
 
 def get_global_averages() -> dict:
-    """Compute league-wide averages from VECTOR_DB totals (instant).
-    Returns zero-filled dict if DB isn't ready yet (builds in background)."""
     if not _VECTOR_DB_INITIALIZED:
-        logger.info("Vector DB not yet initialized, returning zero-filled averages")
-        return {k: 0 for k in (RADAR_KEYS + PCT_KEYS)}
-    
+        logger.info("Vector DB not yet initialized, averages unavailable")
+        return {"players_sampled": 0}
+
     totals = {k: 0.0 for k in (RADAR_KEYS + PCT_KEYS)}
     # Accumulate raw sums for percentage metrics (don't average per-player %)
     sum_passes_completed = 0
@@ -207,6 +237,8 @@ def get_global_averages() -> dict:
     
     for pid, data in VECTOR_DB.items():
         player_totals = data.get("totals", {})
+        if not _has_enough_minutes(player_totals):
+            continue
         minutes = player_totals.get("minutes", 0) or 1
         
         totals["goals_per_90"] += round(player_totals.get("goals", 0) / minutes * 90, 2)
@@ -225,11 +257,14 @@ def get_global_averages() -> dict:
         count += 1
 
     if count == 0:
-        return {k: 0 for k in (RADAR_KEYS + PCT_KEYS)}
+        return {"players_sampled": 0}
 
-    avgs = {k: round(totals[k] / count, 2) for k in (RADAR_KEYS + PCT_KEYS)}
-    # Correct percentage averages: sum(raw) / sum(total), not avg of per-player %
-    avgs["pass_completion_pct"] = round(sum_passes_completed / (sum_passes or 1) * 100, 1)
-    avgs["aerial_success_pct"] = round(sum_aerial_won / (sum_aerials or 1) * 100, 1)
+    avgs = {k: round(totals[k] / count, 2) for k in RADAR_KEYS}
+    avgs["pass_completion_pct"] = (
+        round(sum_passes_completed / sum_passes * 100, 1) if sum_passes else None
+    )
+    avgs["aerial_success_pct"] = (
+        round(sum_aerial_won / sum_aerials * 100, 1) if sum_aerials else None
+    )
     avgs["players_sampled"] = count
     return avgs
