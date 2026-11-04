@@ -105,14 +105,14 @@ export interface SimilarPlayer {
 }
 
 export interface AveragesResponse {
-  goals_per_90: number
-  xg_per_90: number
-  xa_per_90: number
-  key_passes_per_90: number
-  dribbles_per_90: number
-  pass_completion_pct: number
-  tackles_per_90: number
-  aerial_success_pct: number
+  goals_per_90?: number
+  xg_per_90?: number
+  xa_per_90?: number
+  key_passes_per_90?: number
+  dribbles_per_90?: number
+  pass_completion_pct?: number | null
+  tackles_per_90?: number
+  aerial_success_pct?: number | null
   players_sampled?: number
 }
 

@@ -65,6 +65,8 @@ const translations: Record<string, string> = {
   'Could not load player': 'No se pudo cargar el jugador',
   'Comparison Radar': 'Radar comparativo',
   'Computing league averages... (first load ~15s)': 'Calculando promedios de la liga... (la primera carga tarda ~15 s)',
+  'Computing similar players...': 'Calculando jugadores similares...',
+  'Not enough data for league averages yet': 'Aún no hay datos suficientes para los promedios de liga',
   'Player A vs League Avg (blue dashed) — scaled against league averages': 'Jugador A vs. promedio de la liga (línea azul discontinua), según los promedios de la liga',
   'Stats Comparison': 'Comparación de estadísticas', 'Green indicates the better value': 'El verde indica el mejor valor',
   Metric: 'Estadística', 'Select two players above to compare their stats.': 'Selecciona dos jugadores para comparar sus estadísticas.',
