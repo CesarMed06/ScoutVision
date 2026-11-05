@@ -1,4 +1,6 @@
 import io
+import threading
+from functools import lru_cache, wraps
 
 import matplotlib
 matplotlib.use('Agg')
@@ -6,38 +8,33 @@ import matplotlib.pyplot as plt
 from mplsoccer import Pitch, Radar
 import pandas as pd
 
-from app.services.statsbomb import get_match_events, search_players
+from app.services.statsbomb import get_match_events
 from app.services.metrics import get_player_metrics_across_matches
 
+_RENDER_LOCK = threading.Lock()
 
-def _find_player_name(player_id):
-    rows = search_players(limit=10000)
-    rows = rows[rows["player_id"] == player_id]
-    if len(rows) == 0:
-        return None
-    return rows.iloc[0]["player_name"]
+
+def _serialized(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        with _RENDER_LOCK:
+            return fn(*args, **kwargs)
+
+    return wrapper
 
 
 def _get_player_events(player_id, match_id):
-    player_name = _find_player_name(player_id)
-    if player_name is None:
-        return None, None, None
     events = get_match_events(match_id)
-    if len(events) == 0:
+    if len(events) == 0 or "player_id" not in events.columns:
         return None, None, None
-    if player_name in events["player"].values:
-        matched = player_name
-    else:
-        matched = None
-        for p in events["player"].dropna().unique():
-            if player_name in p or p in player_name:
-                matched = p
-                break
-        if matched is None:
-            return None, None, None
-    return events[events["player"] == matched], matched, events
+    rows = events[events["player_id"] == player_id]
+    if len(rows) == 0:
+        return None, None, None
+    return rows, rows["player"].iloc[0], events
 
 
+@lru_cache(maxsize=32)
+@_serialized
 def player_heatmap(player_id, match_id):
     player_events, _, _ = _get_player_events(player_id, match_id)
     if player_events is None:
@@ -57,6 +54,8 @@ def player_heatmap(player_id, match_id):
     return buf.getvalue()
 
 
+@lru_cache(maxsize=32)
+@_serialized
 def player_passes(player_id, match_id):
     player_events, player_name, _ = _get_player_events(player_id, match_id)
     if player_events is None:
@@ -84,6 +83,8 @@ def player_passes(player_id, match_id):
     return buf.getvalue()
 
 
+@lru_cache(maxsize=32)
+@_serialized
 def player_shots(player_id, match_id):
     player_events, player_name, _ = _get_player_events(player_id, match_id)
     if player_events is None:
@@ -111,6 +112,8 @@ def player_shots(player_id, match_id):
     return buf.getvalue()
 
 
+@lru_cache(maxsize=64)
+@_serialized
 def player_radar(player_id):
     matches = get_player_metrics_across_matches(player_id)
     if not matches:
@@ -149,6 +152,8 @@ def player_radar(player_id):
     return buf.getvalue()
 
 
+@lru_cache(maxsize=32)
+@_serialized
 def match_heatmap(match_id):
     events = get_match_events(match_id)
     if len(events) == 0:

@@ -1,6 +1,6 @@
 import json
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Path, Query
 import pandas as pd
 
 from app.services import statsbomb
@@ -28,23 +28,34 @@ def list_seasons(competition_id: int):
 
 
 @router.get("/matches/{competition_id}/{season_id}")
-def list_matches(competition_id: int, season_id: int):
+def list_matches(
+    competition_id: int = Path(..., gt=0), season_id: int = Path(..., gt=0)
+):
     return _serialize(statsbomb.get_matches(competition_id, season_id))
 
 
 @router.get("/events/{match_id}")
-def get_events(match_id: int):
+def get_events(match_id: int = Path(..., gt=0)):
     events = statsbomb.get_match_events(match_id)
+    if len(events) == 0:
+        raise HTTPException(
+            status_code=404, detail=f"No events found for match {match_id}"
+        )
     return _serialize(events)
 
 
 @router.get("/lineups/{match_id}")
-def get_lineups(match_id: int):
-    return statsbomb.get_match_lineups(match_id)
+def get_lineups(match_id: int = Path(..., gt=0)):
+    lineups = statsbomb.get_match_lineups(match_id)
+    if not lineups:
+        raise HTTPException(
+            status_code=404, detail=f"No lineups found for match {match_id}"
+        )
+    return lineups
 
 
 @router.get("/players")
-def search_players(q: str = Query(default="")):
+def search_players(q: str = Query(default="", max_length=80)):
     return _serialize(statsbomb.search_players(query=q))
 
 
