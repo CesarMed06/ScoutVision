@@ -359,7 +359,11 @@ def get_player_metrics_across_matches(player_id: int) -> list[dict]:
     # Check disk cache first (survives restarts)
     cache_path = METRICS_DIR / f"metrics_{player_id}.json"
     if settings.demo_mode and not cache_path.exists():
-        cache_path = SAMPLE_DATA_DIR / cache_path.name
+        for folder in (SAMPLE_DATA_DIR, METRICS_DIR):
+            candidate = folder / cache_path.name
+            if candidate.exists():
+                cache_path = candidate
+                break
     if cache_path.exists():
         try:
             import json
