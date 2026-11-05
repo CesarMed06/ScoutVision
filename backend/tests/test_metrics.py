@@ -303,3 +303,37 @@ def test_aggregate_totals_skips_final_third_rate_for_legacy_rows():
     totals = _aggregate_totals(legacy)
     assert "passes_into_final_third_pct" not in totals
     assert totals["pass_completion_pct"] == 80.0
+
+
+def test_aerial_duels_combine_lost_duels_and_won_headers():
+    from app.services.metrics import compute_player_metrics
+
+    events = pd.DataFrame([
+        _event("Starting XI", tactics={"lineup": [{"player": {"name": "Centre Back"}}]}),
+        _event("Half End", period=1, minute=45, second=0),
+        _event("Half End", period=2, minute=90, second=0),
+        _event("Duel", "Centre Back", minute=5, second=0, period=1, duel_type="Aerial Lost"),
+        _event("Pass", "Centre Back", minute=10, second=0, period=1, pass_outcome=None, pass_aerial_won=True),
+        _event("Clearance", "Centre Back", minute=20, second=0, period=1, clearance_aerial_won=True),
+    ])
+
+    result = compute_player_metrics(events, "Centre Back")
+    assert result["aerial_duels"] == 3
+    assert result["aerial_duels_won"] == 2
+    assert result["aerial_success_pct"] == 66.7
+
+
+def test_player_events_are_linked_by_player_id():
+    from app.services.metrics import compute_player_metrics
+
+    events = pd.DataFrame([
+        _event("Starting XI", tactics={"lineup": [{"player": {"name": "Keeper"}}]}),
+        _event("Half End", period=1, minute=45, second=0),
+        _event("Half End", period=2, minute=90, second=0),
+        _event("Pass", "Same Name", minute=10, second=0, period=1, pass_outcome=None, player_id=11.0),
+        _event("Pass", "Same Name", minute=20, second=0, period=1, pass_outcome=None, player_id=22.0),
+    ])
+
+    assert compute_player_metrics(events, None, player_id=11)["passes"] == 1
+    assert compute_player_metrics(events, None, player_id=22)["passes"] == 1
+    assert compute_player_metrics(events, None, player_id=33) == {}

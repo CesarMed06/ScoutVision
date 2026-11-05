@@ -10,6 +10,8 @@ METRICS_DIR = DATA_DIR
 FINAL_THIRD_X = 80
 MIN_PROGRESSIVE_DIST = 10
 
+AERIAL_WON_FLAGS = ("pass_aerial_won", "clearance_aerial_won", "shot_aerial_won")
+
 PCT_ATTEMPT_SOURCES: dict[str, str] = {
     "shot_accuracy": "shots",
     "pass_completion_pct": "passes",
@@ -120,8 +122,27 @@ def _col(df, name):
     return df[name] if name in df.columns else pd.Series(index=df.index, dtype=float)
 
 
-def compute_player_metrics(events: pd.DataFrame, player: str) -> dict:
+def _resolve_player(
+    events: pd.DataFrame, player: str | None, player_id: int | None = None
+) -> str | None:
+    if player_id is not None and "player_id" in events.columns:
+        rows = events[events["player_id"] == player_id]
+        if len(rows) > 0:
+            return rows["player"].iloc[0]
+    return player
+
+
+def compute_player_metrics(
+    events: pd.DataFrame, player: str | None, player_id: int | None = None
+) -> dict:
+    player = _resolve_player(events, player, player_id)
+    if not player:
+        return {}
     player_events = events[events["player"] == player]
+    if player_id is not None and "player_id" in events.columns:
+        by_id = events[events["player_id"] == player_id]
+        if len(by_id) > 0:
+            player_events = by_id
     if len(player_events) == 0:
         return {}
 
@@ -256,11 +277,14 @@ def compute_player_metrics(events: pd.DataFrame, player: str) -> dict:
     )
     tackle_pct = percentage(tackles_won, tackles)
 
+    # StatsBomb only logs the duel for the player who loses it; the winner is
+    # flagged on the next action (pass, clearance or shot made after the header).
     aerial_mask = duel_type.astype("string").str.contains("Aerial", case=False, na=False)
-    aerial_duels = len(duels[aerial_mask])
-    aerial_won = len(
-        duels[aerial_mask & duel_outcome.isin(["Won", "Success Out"])]
+    aerial_lost = len(duels[aerial_mask])
+    aerial_won = sum(
+        int(_col(player_events, flag).eq(True).sum()) for flag in AERIAL_WON_FLAGS
     )
+    aerial_duels = aerial_lost + aerial_won
     aerial_pct = percentage(aerial_won, aerial_duels)
 
     return {
@@ -359,7 +383,10 @@ def get_player_metrics_across_matches(player_id: int) -> list[dict]:
     player_name = player_rows.iloc[0]["player_name"]
     match_ids = player_rows["match_id"].unique()
 
-    def find_player_in_events(events_df, name):
+    def find_player_in_events(events_df, name, pid):
+        matched = _resolve_player(events_df, None, pid)
+        if matched is not None:
+            return matched
         if name in events_df["player"].values:
             return name
         for p in events_df["player"].dropna().unique():
@@ -370,10 +397,10 @@ def get_player_metrics_across_matches(player_id: int) -> list[dict]:
     all_metrics = []
     for mid in match_ids:
         events = get_match_events(int(mid))
-        matched_name = find_player_in_events(events, player_name)
+        matched_name = find_player_in_events(events, player_name, player_id)
         if matched_name is None:
             continue
-        metrics = compute_player_metrics(events, matched_name)
+        metrics = compute_player_metrics(events, matched_name, player_id)
         if metrics:
             match_info = player_rows[player_rows["match_id"] == mid].iloc[0]
             metrics["match_id"] = int(mid)
