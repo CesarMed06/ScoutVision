@@ -19,11 +19,24 @@ def _cache_path(name: str) -> Path:
     return DATA_DIR / f"{name}.json"
 
 
+def _cache_dirs() -> list[Path]:
+    dirs = [DATA_DIR]
+    if settings.demo_mode:
+        dirs += [SAMPLE_DATA_DIR, BACKEND_ROOT / "data"]
+    return list(dict.fromkeys(dirs))
+
+
+def _cached_path(name: str) -> Path | None:
+    for folder in _cache_dirs():
+        path = folder / f"{name}.json"
+        if path.exists():
+            return path
+    return None
+
+
 def _load_cached(name: str):
-    path = _cache_path(name)
-    if not path.exists() and settings.demo_mode:
-        path = SAMPLE_DATA_DIR / f"{name}.json"
-    if path.exists():
+    path = _cached_path(name)
+    if path is not None:
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     return None
@@ -234,8 +247,9 @@ def search_players(query: str = "", limit: int = 100) -> pd.DataFrame:
     if cached is not None and len(cached) > 100:
         df = pd.DataFrame(cached)
     else:
-        if cached is not None:
-            _cache_path("players_index").unlink(missing_ok=True)
+        stale = _cached_path("players_index")
+        if stale is not None:
+            stale.unlink(missing_ok=True)
         df = _build_player_index()
     if query:
         q = _normalize_search_text(query.strip())
