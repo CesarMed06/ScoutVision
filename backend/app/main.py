@@ -1,14 +1,16 @@
 import logging
 import threading
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s", datefmt="%H:%M:%S")
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from app.core.config import APP_VERSION, settings
 from app.api.v1.statsbomb import router as statsbomb_router
@@ -41,7 +43,7 @@ async def lifespan(app: FastAPI):
     # Shutdown: nothing to clean up
 
 
-limiter = Limiter(key_func=get_remote_address, default_limits=["120/minute"])
+limiter = Limiter(key_func=get_remote_address, default_limits=[settings.rate_limit])
 
 app = FastAPI(
     title="ScoutVision AI",
@@ -53,6 +55,7 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -67,6 +70,30 @@ app.include_router(viz_router, prefix="/api/v1")
 app.include_router(ai_router, prefix="/api/v1")
 app.include_router(similarity_router, prefix="/api/v1")
 app.include_router(scout_router, prefix="/api/v1")
+
+
+@app.middleware("http")
+async def cache_visualizations(request: Request, call_next):
+    response = await call_next(request)
+    if response.status_code == 200 and request.url.path.startswith("/api/v1/viz/"):
+        response.headers["Cache-Control"] = "public, max-age=86400"
+    return response
+
+
+@app.get("/ready")
+def readiness_check():
+    import app.services.similarity as sim
+
+    problems = []
+    if not sim._VECTOR_DB_INITIALIZED:
+        problems.append("vector_db")
+    if not Path(settings.statsbomb_data_dir).is_dir():
+        problems.append("data_dir")
+    if problems:
+        raise HTTPException(
+            status_code=503, detail={"status": "not_ready", "problems": problems}
+        )
+    return {"status": "ready", "vector_db_size": len(sim.VECTOR_DB)}
 
 
 @app.get("/health")
