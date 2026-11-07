@@ -85,7 +85,11 @@ const translations: Record<string, string> = {
   'Stream failed': 'Error al recibir el informe',
   'No match data found for player ID': 'No se encontraron datos de partidos para el jugador',
   'GROQ_API_KEY not configured': 'La clave de Groq no está configurada',
-  'Error:': 'Error:',
+  'Error:': 'Error:', Searching: 'Buscando…',
+  'No featured players available': 'No hay jugadores destacados disponibles',
+  'No similar players yet': 'Aún no hay jugadores similares',
+  'Could not load similar players': 'No se pudieron cargar los jugadores similares',
+  Close: 'Cerrar', 'Player metric radar chart': 'Radar de métricas del jugador',
   Minutes: 'Minutos', Visualizations: 'Visualizaciones',
 }
 

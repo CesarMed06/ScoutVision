@@ -160,13 +160,14 @@ export default function Scout() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
           {FILTER_CONFIG.map((cfg) => (
             <div key={cfg.key}>
-              <label className="flex items-center justify-between text-sm text-gray-400 mb-1">
+              <label htmlFor={`f-${cfg.key}`} className="flex items-center justify-between text-sm text-gray-400 mb-1">
                 <span>{t(cfg.label)}</span>
                 <span className="font-mono text-white">
                   {cfg.step < 1 ? filters[cfg.key].toFixed(2) : filters[cfg.key].toFixed(0)}
                 </span>
               </label>
               <input
+                id={`f-${cfg.key}`}
                 type="range"
                 min={0}
                 max={cfg.max}
@@ -188,8 +189,9 @@ export default function Scout() {
 
         <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-gray-800">
           <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-400">{t('Sort by')}</label>
+            <label htmlFor="scout-sort" className="text-sm text-gray-400">{t('Sort by')}</label>
             <select
+              id="scout-sort"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
               className="px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white focus:outline-none focus:border-emerald-500"
@@ -259,7 +261,7 @@ export default function Scout() {
                 <div className="flex items-start gap-3">
                   <div className="w-10 h-10 rounded-full bg-gray-800 shrink-0 overflow-hidden">
                     {photos[p.player_id] ? (
-                      <img src={photos[p.player_id]!} alt={p.player_name} onError={() => setPhotos(current => ({ ...current, [p.player_id]: null }))} className="w-full h-full object-cover" />
+                      <img src={photos[p.player_id]!} alt="" onError={() => setPhotos(current => ({ ...current, [p.player_id]: null }))} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <ImageIcon className="w-5 h-5 text-gray-500" />
