@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Loader2, Target, Zap, Footprints, Swords, FileText, ChevronDown, ChevronUp, ImageIcon, Users, GitCompare, Map, Crosshair, ArrowUpCircle } from 'lucide-react'
-import { getPlayerMetrics, getAiReportStream, getPlayerPhoto, getSimilarPlayers, getPlayerAverages, getVizUrl } from '../api'
+import { ApiError, getPlayerMetrics, getAiReportStream, getPlayerPhoto, getSimilarPlayers, getPlayerAverages, getVizUrl } from '../api'
 import type { PlayerMetricsResponse, PlayerMetricsTotals, SimilarPlayer, AveragesResponse } from '../api'
 import MetricRadar from '../components/MetricRadar'
 import { useLanguage } from '../i18n'
@@ -62,6 +62,12 @@ function VizModal({ playerId, matchId, matchLabel, onClose }: { playerId: number
   const [imgError, setImgError] = useState(false)
   const [imgLoading, setImgLoading] = useState(true)
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
   const tabs = [
     { key: 'heatmap' as const, label: t('Heatmap'), icon: Map },
     { key: 'passes' as const, label: t('Pass Map'), icon: ArrowUpCircle },
@@ -69,18 +75,25 @@ function VizModal({ playerId, matchId, matchLabel, onClose }: { playerId: number
   ]
 
   return (
-    <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={t('Visualizations')}
+    >
       <div className="bg-gray-900 border border-gray-800 rounded-xl w-full max-w-3xl max-h-[90vh] overflow-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b border-gray-800">
           <h3 className="text-white font-semibold">{t('Visualizations —')} {matchLabel}</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-white text-xl leading-none">&times;</button>
+          <button onClick={onClose} aria-label={t('Close')} autoFocus className="text-gray-500 hover:text-white text-xl leading-none">&times;</button>
         </div>
         <div className="flex gap-1 px-4 pt-3">
           {tabs.map(tab => (
             <button
               key={tab.key}
               onClick={() => { setActiveTab(tab.key); setImgError(false); setImgLoading(true) }}
-              className={`px-4 py-2 rounded-t-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+              aria-pressed={activeTab === tab.key}
+              className={`px-3 sm:px-4 py-2 rounded-t-lg text-sm font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
                 activeTab === tab.key
                   ? 'bg-gray-800 text-emerald-400 border-b-2 border-emerald-400'
                   : 'text-gray-500 hover:text-gray-300'
@@ -99,7 +112,7 @@ function VizModal({ playerId, matchId, matchLabel, onClose }: { playerId: number
               {imgLoading && <p className="text-gray-500 text-center py-12">{t('Loading…')}</p>}
               <img
                 src={getVizUrl(activeTab, playerId, matchId)}
-                alt={`${activeTab} for match ${matchId}`}
+                alt={tabs.find((tab) => tab.key === activeTab)?.label}
                 className={`w-full rounded-lg ${imgLoading ? 'hidden' : ''}`}
                 onLoad={() => setImgLoading(false)}
                 onError={() => { setImgLoading(false); setImgError(true) }}
@@ -124,7 +137,7 @@ export default function PlayerProfile() {
   const [error, setError] = useState('')
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
   const [similarPlayers, setSimilarPlayers] = useState<SimilarPlayer[]>([])
-  const [similarPending, setSimilarPending] = useState(false)
+  const [similarState, setSimilarState] = useState<'idle' | 'pending' | 'empty' | 'error'>('idle')
   const [averages, setAverages] = useState<AveragesResponse | null>(null)
   const [vizMatch, setVizMatch] = useState<{ matchId: number; team: string } | null>(null)
 
@@ -135,7 +148,7 @@ export default function PlayerProfile() {
     setShowReport(false)
     setPhotoUrl(null)
     setSimilarPlayers([])
-    setSimilarPending(false)
+    setSimilarState('idle')
     setAverages(null)
     setVizMatch(null)
 
@@ -149,10 +162,13 @@ export default function PlayerProfile() {
         getPlayerPhoto(name).then((p) => setPhotoUrl(p.photo_url)).catch(() => {})
         getSimilarPlayers(Number(playerId))
           .then(setSimilarPlayers)
-          .catch(() => setSimilarPending(true))
+          .catch((e) => {
+            const status = e instanceof ApiError ? e.status : 0
+            setSimilarState(status === 503 ? 'pending' : status === 404 ? 'empty' : 'error')
+          })
         getPlayerAverages(name).then(setAverages).catch(() => {})
       })
-      .catch(() => { setError('Player not found'); setLoading(false) })
+      .catch((e) => { setError(e instanceof ApiError && e.status === 404 ? 'Player not found' : 'Could not load player'); setLoading(false) })
   }, [playerId])
 
   function loadReport() {
@@ -231,7 +247,7 @@ export default function PlayerProfile() {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
       <div className="flex items-center gap-4 mb-8">
         {photoUrl ? (
-          <img src={photoUrl} alt={data.player_name} onError={() => setPhotoUrl(null)} className="w-14 h-14 rounded-full object-cover border-2 border-emerald-500/50" />
+          <img src={photoUrl} alt="" onError={() => setPhotoUrl(null)} className="w-14 h-14 rounded-full object-cover border-2 border-emerald-500/50" />
         ) : (
           <div className="w-14 h-14 rounded-full bg-emerald-900/30 border border-emerald-500/30 flex items-center justify-center">
             <ImageIcon className="w-7 h-7 text-emerald-400" />
@@ -301,6 +317,7 @@ export default function PlayerProfile() {
             <div className="mt-4 bg-gray-900 border border-gray-800 rounded-xl">
               <button
                 onClick={() => setShowReport(!showReport)}
+                aria-expanded={showReport}
                 className="w-full px-4 py-3 flex items-center justify-between text-white font-medium"
               >
                 <span className="flex items-center gap-2">
@@ -319,13 +336,19 @@ export default function PlayerProfile() {
             </div>
           )}
 
-          {similarPlayers.length === 0 && similarPending && (
+          {similarPlayers.length === 0 && similarState !== 'idle' && (
             <div className="mt-4 bg-gray-900 border border-gray-800 rounded-xl p-4">
               <h3 className="text-white font-semibold mb-2 flex items-center gap-2">
                 <Users className="w-4 h-4 text-emerald-400" />
                 {tr('Similar Players')}
               </h3>
-              <p className="text-sm text-gray-500">{tr('Computing similar players...')}</p>
+              <p className="text-sm text-gray-500">
+                {similarState === 'pending'
+                  ? tr('Computing similar players...')
+                  : similarState === 'empty'
+                  ? tr('No similar players yet')
+                  : tr('Could not load similar players')}
+              </p>
             </div>
           )}
 
@@ -349,6 +372,7 @@ export default function PlayerProfile() {
                       to={`/compare?a=${playerId}&b=${p.player_id}`}
                       className="p-1.5 text-gray-500 hover:text-emerald-400 opacity-0 group-hover:opacity-100 transition-all"
                       title={tr('Compare')}
+                      aria-label={tr('Compare')}
                     >
                       <GitCompare className="w-4 h-4" />
                     </Link>
@@ -366,18 +390,18 @@ export default function PlayerProfile() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-gray-400 text-xs uppercase border-b border-gray-800">
-                <th className="text-left py-2 pr-4">{tr('Match')}</th>
-                <th className="text-right px-2">Min</th>
-                <th className="text-right px-2">G</th>
-                <th className="text-right px-2">A</th>
-                <th className="text-right px-2">Sh</th>
-                <th className="text-right px-2">xG</th>
-                <th className="text-right px-2">xA</th>
-                <th className="text-right px-2">KP</th>
-                <th className="text-right px-2">Pas</th>
-                <th className="text-right px-2">Drb</th>
-                <th className="text-right px-2">Tkl</th>
-                <th className="text-right px-2">Viz</th>
+                <th scope="col" className="text-left py-2 pr-4">{tr('Match')}</th>
+                <th scope="col" className="text-right px-2">Min</th>
+                <th scope="col" className="text-right px-2">G</th>
+                <th scope="col" className="text-right px-2">A</th>
+                <th scope="col" className="text-right px-2">Sh</th>
+                <th scope="col" className="text-right px-2">xG</th>
+                <th scope="col" className="text-right px-2">xA</th>
+                <th scope="col" className="text-right px-2">KP</th>
+                <th scope="col" className="text-right px-2">Pas</th>
+                <th scope="col" className="text-right px-2">Drb</th>
+                <th scope="col" className="text-right px-2">Tkl</th>
+                <th scope="col" className="text-right px-2">Viz</th>
               </tr>
             </thead>
             <tbody>
@@ -404,6 +428,7 @@ export default function PlayerProfile() {
                         onClick={() => setVizMatch({ matchId: matchId, team: String(row.team || '') })}
                         className="p-1.5 text-gray-500 hover:text-emerald-400 transition-colors"
                         title={tr('View visualizations')}
+                        aria-label={tr('View visualizations')}
                       >
                         <Map className="w-4 h-4" />
                       </button>

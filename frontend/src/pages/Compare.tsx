@@ -78,12 +78,13 @@ function PlayerSlot({ player, slot, loading, error, onSearch, onChange }: {
             onClick={onChange}
             className="absolute top-2 right-2 p-1.5 bg-gray-800 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-gray-700 transition-all text-gray-400 hover:text-white z-10"
             title={t('Change player')}
+            aria-label={t('Change player')}
           >
             <RefreshCw className="w-3.5 h-3.5" />
           </button>
           <Link to={`/players/${player.player_id}`} className="flex items-center gap-3">
             {photo ? (
-              <img src={photo} alt={player.player_name} onError={() => setPhoto(null)} className="w-12 h-12 rounded-full object-cover shrink-0 border border-gray-700" />
+              <img src={photo} alt="" onError={() => setPhoto(null)} className="w-12 h-12 rounded-full object-cover shrink-0 border border-gray-700" />
             ) : (
               <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center shrink-0">
                 <ImageIcon className="w-6 h-6 text-gray-500" />
@@ -269,12 +270,24 @@ export default function Compare() {
   }
 
   function SearchModal({ slot }: { slot: 'a' | 'b' }) {
+    useEffect(() => {
+      const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowSearchModal(null) }
+      window.addEventListener('keydown', onKey)
+      return () => window.removeEventListener('keydown', onKey)
+    }, [])
+
     return (
       <div className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center pt-24 px-4" onClick={() => setShowSearchModal(null)}>
-        <div className="bg-gray-900 border border-gray-800 rounded-xl w-full max-w-md p-4" onClick={e => e.stopPropagation()}>
+        <div
+          className="bg-gray-900 border border-gray-800 rounded-xl w-full max-w-md p-4"
+          onClick={e => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-label={t('Select Player')}
+        >
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-white font-semibold">{t('Select Player')} {slot.toUpperCase()}</h3>
-            <button onClick={() => setShowSearchModal(null)} className="text-gray-500 hover:text-white transition-colors">
+            <button onClick={() => setShowSearchModal(null)} aria-label={t('Close')} className="text-gray-500 hover:text-white transition-colors">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -379,9 +392,9 @@ export default function Compare() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-xs text-gray-500 uppercase border-b border-gray-800">
-                    <th className="text-left py-2 pr-3 font-medium">{t('Metric')}</th>
-                    <th className="text-right px-3 font-medium">{playerA.player_name.split(' ').pop()}</th>
-                    <th className="text-right px-3 font-medium">{playerB.player_name.split(' ').pop()}</th>
+                    <th scope="col" className="text-left py-2 pr-3 font-medium">{t('Metric')}</th>
+                    <th scope="col" className="text-right px-3 font-medium">{playerA.player_name.split(' ').pop()}</th>
+                    <th scope="col" className="text-right px-3 font-medium">{playerB.player_name.split(' ').pop()}</th>
                   </tr>
                 </thead>
                 <tbody>

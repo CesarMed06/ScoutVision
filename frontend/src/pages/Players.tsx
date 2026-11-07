@@ -26,6 +26,7 @@ export default function Players() {
   const [loading, setLoading] = useState(false)
   const [featured, setFeatured] = useState<FeaturedPlayer[]>([])
   const [featuredLoading, setFeaturedLoading] = useState(true)
+  const [error, setError] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -39,10 +40,12 @@ export default function Players() {
   useEffect(() => {
     let cancelled = false
     if (!query.trim()) {
+      setError(false)
       setResults([])
       setLoading(false)
       return
     }
+    setError(false)
     const t = setTimeout(async () => {
       setLoading(true)
       try {
@@ -56,7 +59,7 @@ export default function Players() {
           }))
         }
       } catch {
-        if (!cancelled) setResults([])
+        if (!cancelled) { setResults([]); setError(true) }
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -76,10 +79,16 @@ export default function Players() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t('Search players by name...')}
+          aria-label={t('Search players by name...')}
           className="w-full pl-12 pr-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition-colors"
           autoFocus
         />
-        {loading && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-400 animate-spin" />}
+        {loading && (
+          <span role="status" aria-live="polite" className="absolute right-4 top-1/2 -translate-y-1/2">
+            <Loader2 className="w-5 h-5 text-emerald-400 animate-spin" />
+            <span className="sr-only">{t('Searching')}</span>
+          </span>
+        )}
       </div>
 
       {query.trim() ? (
@@ -87,7 +96,12 @@ export default function Players() {
           {results.map((p) => (
             <PlayerCard key={`${p.player_id}-${p.match_id}`} player={p} />
           ))}
-          {!loading && results.length === 0 && (
+          {!loading && error && (
+            <p className="col-span-full text-center text-red-400 py-12">
+              {t('Search failed')} · {t('Check the connection and try again')}
+            </p>
+          )}
+          {!loading && !error && results.length === 0 && (
             <p className="col-span-full text-center text-gray-500 py-12">{t('No players found')}</p>
           )}
         </div>
@@ -97,6 +111,8 @@ export default function Players() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {featuredLoading
               ? Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
+              : featured.length === 0
+              ? <p className="col-span-full text-center text-gray-500 py-12">{t('No featured players available')}</p>
               : featured.map((p) => (
                   <PlayerCard key={p.player_id} player={p} />
                 ))

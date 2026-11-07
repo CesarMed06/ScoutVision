@@ -12,12 +12,21 @@ export function apiUrl(path: string): string {
   return `${BASE}${path}`
 }
 
+export class ApiError extends Error {
+  status: number
+
+  constructor(path: string, status: number) {
+    super(`GET ${path} failed: ${status}`)
+    this.status = status
+  }
+}
+
 async function get<T>(path: string, timeoutMs = TIMEOUT): Promise<T> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
     const res = await fetch(apiUrl(path), { signal: controller.signal })
-    if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`)
+    if (!res.ok) throw new ApiError(path, res.status)
     return res.json()
   } finally {
     clearTimeout(timer)
