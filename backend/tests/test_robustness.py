@@ -24,11 +24,19 @@ def test_ready_when_everything_is_loaded(monkeypatch):
     assert response.json()["vector_db_size"] == 1
 
 
-def test_visualizations_are_cached_by_clients():
+def test_visualizations_are_cached_by_clients(monkeypatch):
+    import app.services.visualizations as viz
+
+    monkeypatch.setattr(viz, "player_heatmap", lambda player_id, match_id: b"\x89PNG\r\n\x1a\n")
     response = client.get("/api/v1/viz/player/20485/heatmap?match_id=3890563")
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/png"
     assert "max-age=86400" in response.headers["cache-control"]
+
+    monkeypatch.setattr(viz, "player_heatmap", lambda player_id, match_id: None)
+    missing = client.get("/api/v1/viz/player/20485/heatmap?match_id=3890563")
+    assert missing.status_code == 404
+    assert "cache-control" not in missing.headers
 
 
 def test_rate_limit_returns_429():
