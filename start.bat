@@ -16,6 +16,13 @@ if errorlevel 1 (
     exit /b 1
 )
 
+docker compose version >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] Docker Compose v2 is required. Update Docker Desktop and try again.
+    pause
+    exit /b 1
+)
+
 docker info >nul 2>&1
 if errorlevel 1 (
     if exist "%ProgramFiles%\Docker\Docker\Docker Desktop.exe" (
@@ -46,6 +53,21 @@ pause
 exit /b 1
 
 :docker_ready
+netstat -ano | findstr /c:":%FRONTEND_PORT%" | findstr /i "LISTENING" >nul
+if not errorlevel 1 (
+    echo [ERROR] Port %FRONTEND_PORT% is already in use.
+    echo Stop that process, or set FRONTEND_PORT to a free port, then run start.bat again.
+    pause
+    exit /b 1
+)
+netstat -ano | findstr /c:":%BACKEND_PORT%" | findstr /i "LISTENING" >nul
+if not errorlevel 1 (
+    echo [ERROR] Port %BACKEND_PORT% is already in use.
+    echo Stop that process, or set BACKEND_PORT to a free port, then run start.bat again.
+    pause
+    exit /b 1
+)
+
 echo Docker is ready. Building and starting ScoutVision...
 start "ScoutVision Docker" /D "%~dp0" cmd /k docker compose up --build
 

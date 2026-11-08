@@ -5,14 +5,11 @@ services:
       dockerfile: Dockerfile
     ports:
       - "${BACKEND_PORT:-8000}:8000"
-    # .env is optional: the API runs without a Groq key (AI reports are disabled).
+    # Optional: GROQ_API_KEY, DEMO_MODE, STATSBOMB_DATA_DIR, CORS_ORIGINS, RATE_LIMIT.
+    # Defaults live in the image: demo mode over backend/sample_data.
     env_file:
       - path: ./backend/.env
         required: false
-    environment:
-      DEMO_MODE: ${DEMO_MODE:-true}
-      STATSBOMB_DATA_DIR: ${STATSBOMB_DATA_DIR:-sample_data}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:5174}
     volumes:
       - ./backend/data:/app/data
     restart: unless-stopped

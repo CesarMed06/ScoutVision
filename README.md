@@ -2,7 +2,7 @@
   <img src="https://github.com/CesarMed06/ScoutVision/actions/workflows/ci.yml/badge.svg" alt="CI" />
   <img src="https://img.shields.io/badge/status-active-success.svg" alt="Status" />
   <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License" />
-  <img src="https://img.shields.io/badge/python-3.12+-blue?logo=python" alt="Python" />
+  <img src="https://img.shields.io/badge/python-3.12-blue?logo=python" alt="Python" />
   <img src="https://img.shields.io/badge/react-18.x-61DAFB?logo=react" alt="React" />
   <img src="https://img.shields.io/badge/llama-3.3-FF6F00?logo=meta" alt="Llama" />
 </div>
@@ -179,7 +179,7 @@ ScoutVision/
 │   │   ├── api/
 │   │   ├── core/
 │   │   ├── services/
-│   │   └── visualizations/
+│   │   └── main.py
 │   ├── data/          # runtime cache, not versioned
 │   ├── sample_data/   # small committed sample (offline runs and CI)
 │   └── tests/
@@ -194,9 +194,16 @@ ScoutVision/
 
 ### Requirements
 
-- Python 3.12+
+- Python 3.12 (also used by CI and Docker; newer versions may lack wheels for the pinned dependencies)
 - Node.js 18+
-- A free [Groq API key](https://console.groq.com)
+- Docker Desktop (only for `start.bat` and the Docker route)
+- A free [Groq API key](https://console.groq.com) (optional, needed for AI reports)
+
+### One-click on Windows
+
+`start.bat` is the fastest route: it starts Docker Desktop if it is not running, builds both services, waits until the app answers and opens the browser at http://localhost:5174. It uses ports 5174 (frontend) and 8010 (API) so they do not clash with the dev servers below.
+
+`run_tests.bat` runs the backend suite from `backend/.venv`, creating the virtual environment and installing the requirements on first run.
 
 ### Backend
 
@@ -238,12 +245,12 @@ Then open [http://localhost:5173](http://localhost:5173).
 docker compose up --build
 ```
 
-Docker starts in offline demo mode using `backend/sample_data`. Set `DEMO_MODE=false` in `.env` to use the full StatsBomb cache in `backend/data`. Requires Docker Compose v2.24+ (optional `env_file` entry).
+Docker starts in offline demo mode using `backend/sample_data`, on ports 5173 (frontend) and 8000 (API). Requires Docker Compose v2.24+ (optional `env_file` entry).
 
 - Frontend: [http://localhost:5173](http://localhost:5173)
 - Backend: [http://localhost:8000](http://localhost:8000) (docs at `/docs`)
 
-The backend image does not bundle the StatsBomb event cache; `backend/data` is mounted into the container at runtime. `backend/.env` is optional — without a Groq key the app works and only AI reports are unavailable.
+To serve the full StatsBomb cache instead, create `backend/.env` with `DEMO_MODE=false` and `STATSBOMB_DATA_DIR=data`, then restart the backend. The image does not bundle the event cache; `backend/data` is mounted into the container at runtime. `backend/.env` is optional — without a Groq key the app works and only AI reports are unavailable.
 
 ## Data
 
@@ -257,6 +264,13 @@ STATSBOMB_DATA_DIR=sample_data uvicorn app.main:app --reload
 ```
 
 Set `DEMO_MODE=true` to prevent StatsBomb downloads and use only files in the sample; missing data returns as unavailable. Leave it false for normal use: the API then reads and fills `backend/data` from StatsBomb Open Data on demand. CI runs the tests against the sample.
+
+## Limitations
+
+- StatsBomb Open Data covers a limited set of competitions and seasons, weighted towards 2015/2016 and the World Cups. Recent seasons and full careers are not available.
+- The full cache is about 1.8 GB and is downloaded on demand. The committed sample keeps startup instant but only covers 50 players and one match with events.
+- Similarity runs on an index capped at 2000 players (43 in the sample) built in the background at startup: the API answers 503 while it is building, and players outside the index report no similar players.
+- AI reports need a Groq API key and are subject to its free-tier rate limits. Without a key everything else works and reports return a `GROQ_API_KEY not configured` message.
 
 ## Environment Variables
 
