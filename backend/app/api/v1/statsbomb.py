@@ -3,6 +3,7 @@ import json
 from fastapi import APIRouter, HTTPException, Path, Query
 import pandas as pd
 
+from app.core.config import settings
 from app.services import statsbomb
 from app.services.player_images import get_player_photo
 
@@ -77,7 +78,14 @@ def get_featured_players():
                 "season": row.get("season", ""),
             }
     # Sort by match count descending, take top 50
-    sorted_pids = sorted(player_matches.keys(), key=lambda p: player_matches[p], reverse=True)[:50]
+    sorted_pids = sorted(player_matches.keys(), key=lambda p: player_matches[p], reverse=True)
+    if settings.demo_mode:
+        from app.services.metrics import has_player_metrics
+
+        available = [pid for pid in sorted_pids if has_player_metrics(pid)]
+        if available:
+            sorted_pids = available
+    sorted_pids = sorted_pids[:50]
     return [{
         "player_id": int(pid),
         "player_name": player_info[pid]["player_name"],

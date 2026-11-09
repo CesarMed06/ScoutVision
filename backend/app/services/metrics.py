@@ -1,3 +1,4 @@
+import json
 from functools import lru_cache
 
 import pandas as pd
@@ -338,6 +339,20 @@ def compute_player_metrics(
         "miscontrols": int(len(miscontrols)),
         "dribbled_past": int(len(dribbled_past)),
     }
+
+
+@lru_cache(maxsize=4096)
+def has_player_metrics(player_id: int) -> bool:
+    for folder in (METRICS_DIR, SAMPLE_DATA_DIR):
+        path = folder / f"metrics_{player_id}.json"
+        if not path.exists():
+            continue
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return bool(json.load(f))
+        except (json.JSONDecodeError, OSError):
+            return False
+    return False
 
 
 def get_match_metrics(match_id: int) -> list[dict]:

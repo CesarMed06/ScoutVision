@@ -44,6 +44,7 @@ def test_search_players_normalizes_diacritics_and_deduplicates(monkeypatch):
         {"player_id": 3, "player_name": "Other Player", "match_id": 13},
     ])
     monkeypatch.setattr(statsbomb, "_load_cached", lambda _: None)
+    monkeypatch.setattr(statsbomb, "_cached_path", lambda _: None)
     monkeypatch.setattr(statsbomb, "_build_player_index", lambda: players)
 
     result = statsbomb.search_players(query=" joao felix ", limit=2)
@@ -60,6 +61,7 @@ def test_search_players_escapes_query_metacharacters(monkeypatch):
         {"player_id": 2, "player_name": "AAAB Player"},
     ])
     monkeypatch.setattr(statsbomb, "_load_cached", lambda _: None)
+    monkeypatch.setattr(statsbomb, "_cached_path", lambda _: None)
     monkeypatch.setattr(statsbomb, "_build_player_index", lambda: players)
 
     result = statsbomb.search_players(query="A+B")
@@ -88,3 +90,23 @@ def test_photo_cache_saves_merge_concurrent_entries(monkeypatch, tmp_path):
 
     cache = json.loads(player_images.CACHE_FILE.read_text())
     assert set(cache) == {"Bernd Leno", "Julian Brandt"}
+
+
+def test_featured_players_skip_those_without_metrics_in_demo_mode(monkeypatch):
+    from app.api.v1 import statsbomb as api
+    from app.services import metrics, statsbomb
+
+    players = pd.DataFrame([
+        {"player_id": 1, "player_name": "Cached One", "match_id": 10},
+        {"player_id": 1, "player_name": "Cached One", "match_id": 11},
+        {"player_id": 2, "player_name": "No Metrics", "match_id": 12},
+        {"player_id": 2, "player_name": "No Metrics", "match_id": 13},
+        {"player_id": 2, "player_name": "No Metrics", "match_id": 14},
+    ])
+    monkeypatch.setattr(statsbomb, "search_players", lambda **_: players)
+    monkeypatch.setattr(api.settings, "demo_mode", True)
+    monkeypatch.setattr(metrics, "has_player_metrics", lambda pid: pid == 1)
+
+    featured = api.get_featured_players()
+
+    assert [p["player_id"] for p in featured] == [1]
