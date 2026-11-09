@@ -248,7 +248,7 @@ def search_players(query: str = "", limit: int = 100) -> pd.DataFrame:
         df = pd.DataFrame(cached)
     else:
         stale = _cached_path("players_index")
-        if stale is not None:
+        if stale is not None and stale.parent == DATA_DIR and DATA_DIR != SAMPLE_DATA_DIR:
             stale.unlink(missing_ok=True)
         df = _build_player_index()
     if query:
